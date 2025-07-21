@@ -1,4 +1,5 @@
 
+
 import React, { useState } from "react";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
@@ -6,18 +7,60 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
-import { Trash2 } from "lucide-react";
+import { Trash2, Loader2 } from "lucide-react";
+import { deleteOldDbLogs } from "@/api/log_api";
 
 const LogManagement = () => {
   const [daysOlder, setDaysOlder] = useState<string>("30");
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const { toast } = useToast();
 
-  const handleDeleteLogs = () => {
-    toast({
-      title: "Logs Deleted",
-      description: `Logs older than ${daysOlder} days have been deleted successfully.`,
-    });
-    setDaysOlder("30");
+  const handleDeleteLogs = async () => {
+    console.log("🚀 handleDeleteLogs started");
+    console.log("📊 daysOlder value:", daysOlder);
+    
+    setIsLoading(true);
+    
+    try {
+      const days = parseInt(daysOlder, 10);
+      console.log("🔢 Parsed days:", days);
+      
+      if (isNaN(days) || days <= 0) {
+        console.log("❌ Invalid days value");
+        toast({
+          title: "Invalid Input",
+          description: "Please enter a positive number of days.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      console.log("📞 About to call deleteOldDbLogs with:", days);
+      
+      const result = await deleteOldDbLogs(days);
+      
+      console.log("✅ API call successful:", result);
+
+      toast({
+        title: "Success",
+        description: result.message,
+        variant: "default",
+      });
+      
+      setDaysOlder("30");
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+      console.error("❌ Error:", error);
+      
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      console.log("🏁 handleDeleteLogs finished");
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -31,7 +74,7 @@ const LogManagement = () => {
             <p className="text-gray-600">
               Remove logs older than a specified number of days to free up storage space.
             </p>
-            
+
             <div className="flex items-end gap-4">
               <div className="flex-1">
                 <Label htmlFor="days">Delete logs older than (days)</Label>
@@ -42,18 +85,25 @@ const LogManagement = () => {
                   onChange={(e) => setDaysOlder(e.target.value)}
                   placeholder="Enter number of days"
                   min="1"
+                  disabled={isLoading}
                 />
               </div>
-              <Button 
+              <Button
                 onClick={handleDeleteLogs}
                 variant="destructive"
                 className="flex items-center gap-2"
+                disabled={isLoading}
+                type="button"
               >
-                <Trash2 className="h-4 w-4" />
-                Delete Logs
+                {isLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Trash2 className="h-4 w-4" />
+                )}
+                {isLoading ? "Deleting..." : "Delete Logs"}
               </Button>
             </div>
-            
+
             <p className="text-sm text-gray-500">
               Warning: This action cannot be undone. Please ensure you have backed up any important logs before deletion.
             </p>

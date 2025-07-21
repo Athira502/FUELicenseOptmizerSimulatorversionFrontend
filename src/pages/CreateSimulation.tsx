@@ -1,560 +1,1654 @@
-import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import Layout from "@/components/Layout";
-import FilterRoles from "@/components/FilterRoles";
-import RoleProfileSummary from "@/components/RoleProfileSummary";
-import AuthorizationObjects from "@/components/AuthorizationObjects";
-import { ArrowLeft } from "lucide-react";
-import { useToast } from "@/components/ui/use-toast";
+import React, { useState, useEffect } from "react"; 
+import { Link, useNavigate } from "react-router-dom"; 
+import Layout from "@/components/Layout"; 
+import FilterRoles from "@/components/FilterRoles"; 
+import RoleProfileSummary from "@/components/RoleProfileSummary"; 
+import AuthorizationObjects from "../components/AuthorizationObjects"; 
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"; 
+import { Button } from "@/components/ui/button"; 
+import { Input } from "@/components/ui/input"; 
+import { Label } from "@/components/ui/label"; 
+import { ArrowLeft, RefreshCw, Loader2, AlertCircle, PlusCircle } from "lucide-react"; 
+import { useToast } from "@/components/ui/use-toast"; 
+import { Alert, AlertDescription } from "@/components/ui/alert"; 
+import { runSimulation } from "@/api/result_save";
+import { 
 
-const CreateSimulation = () => {
-  const navigate = useNavigate();
-  const { toast } = useToast();
-  const [searchTerm, setSearchTerm] = useState("");
-  const [licenseFilter, setLicenseFilter] = useState("all");
-  const [selectedRole, setSelectedRole] = useState<any>(null);
-  const [editedObjects, setEditedObjects] = useState<any[]>([]);
-  const [hasChanges, setHasChanges] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [savedChanges, setSavedChanges] = useState(false);
+  getRoleDetailsforSim, 
 
-  // Mock data with 20 roles
-  const roles = [
-    {
-      id: "Z:SAP_MM_IM_GOODS_MOVEMENTS",
-      description: "SAP Materials Management - Inventory Management Goods Movements",
-      classification: "GB Advanced Use",
-      gb: 1, gc: 2, gd: 28,
-      assignedUsers: 337,
-      objects: [
-        {
-          id: 1,
-          object: "M_EINF_EKO",
-          classification: "GA Advanced Use",
-          fieldName: "ACTVT",
-          valueLow: "01",
-          valueHigh: "",
-          action: null,
-          newValue: "",
-          isNew: false
-        },
-        {
-          id: 2,
-          object: "M_EINF_EKO",
-          classification: "GD Self-Service Use",
-          fieldName: "ACTVT", 
-          valueLow: "02",
-          valueHigh: "",
-          action: null,
-          newValue: "",
-          isNew: false
-        }
-      ]
-    },
-    {
-      id: "/SKYBFRHC_TEAMS_MAINTAIN_AD",
-      description: "Teams Maintenance Administration",
-      classification: "GB Advanced Use",
-      gb: 1, gc: 0, gd: 1,
-      assignedUsers: 108,
-      objects: [
-        {
-          id: 3,
-          object: "S_USER_GRP",
-          classification: "GB Advanced Use",
-          fieldName: "CLASS",
-          valueLow: "*",
-          valueHigh: "",
-          action: null,
-          newValue: "",
-          isNew: false
-        }
-      ]
-    },
-    {
-      id: "/SKYBFRIDD_CC_TEAMS_ADMIN_SST",
-      description: "Teams Administration Self-Service Tools",
-      classification: "GB Advanced Use", 
-      gb: 1, gc: 0, gd: 0,
-      assignedUsers: 105,
-      objects: [
-        {
-          id: 4,
-          object: "S_ADMIN",
-          classification: "GB Advanced Use",
-          fieldName: "ACTVT",
-          valueLow: "01",
-          valueHigh: "",
-          action: null,
-          newValue: "",
-          isNew: false
-        }
-      ]
-    },
-    {
-      id: "ZUCM_SAP_INTNW_BMT_WFM_DEVELOP",
-      description: "SAP Internal Network Business Management Tools - Workflow Development",
-      classification: "GB Advanced Use",
-      gb: 1, gc: 0, gd: 0,
-      assignedUsers: 3,
-      objects: [
-        {
-          id: 5,
-          object: "S_DEVELOP",
-          classification: "GB Advanced Use",
-          fieldName: "DEVCLASS",
-          valueLow: "Z*",
-          valueHigh: "",
-          action: null,
-          newValue: "",
-          isNew: false
-        }
-      ]
-    },
-    {
-      id: "SAP_AIO_PURCHASER-S",
-      description: "SAP All-in-One Purchaser Standard",
-      classification: "GB Advanced Use",
-      gb: 2, gc: 3, gd: 156,
-      assignedUsers: 336,
-      objects: [
-        {
-          id: 6,
-          object: "M_BANF_EKG",
-          classification: "GB Advanced Use",
-          fieldName: "ACTVT",
-          valueLow: "01",
-          valueHigh: "",
-          action: null,
-          newValue: "",
-          isNew: false
-        }
-      ]
-    },
-    {
-      id: "SAP_FI_GL_MASTER_RECORD_MAINTAIN",
-      description: "Financial Accounting General Ledger Master Record Maintenance",
-      classification: "GC Core Use",
-      gb: 0, gc: 1, gd: 5,
-      assignedUsers: 89,
-      objects: [
-        {
-          id: 7,
-          object: "F_SKA1_MAI",
-          classification: "GC Core Use",
-          fieldName: "ACTVT",
-          valueLow: "02",
-          valueHigh: "",
-          action: null,
-          newValue: "",
-          isNew: false
-        }
-      ]
-    },
-    {
-      id: "SAP_SD_SALES_ORDER_PROCESSING",
-      description: "Sales and Distribution Sales Order Processing",
-      classification: "GB Advanced Use",
-      gb: 1, gc: 1, gd: 45,
-      assignedUsers: 234,
-      objects: [
-        {
-          id: 8,
-          object: "V_VBAK_VKO",
-          classification: "GB Advanced Use",
-          fieldName: "ACTVT",
-          valueLow: "01",
-          valueHigh: "",
-          action: null,
-          newValue: "",
-          isNew: false
-        }
-      ]
-    },
-    {
-      id: "SAP_PP_PRODUCTION_PLANNING",
-      description: "Production Planning and Control",
-      classification: "GB Advanced Use",
-      gb: 2, gc: 1, gd: 23,
-      assignedUsers: 145,
-      objects: [
-        {
-          id: 9,
-          object: "P_PKHD_LOW",
-          classification: "GB Advanced Use",
-          fieldName: "ACTVT",
-          valueLow: "01",
-          valueHigh: "",
-          action: null,
-          newValue: "",
-          isNew: false
-        }
-      ]
-    },
-    {
-      id: "SAP_HR_PERSONNEL_ADMINISTRATION",
-      description: "Human Resources Personnel Administration",
-      classification: "GC Core Use",
-      gb: 0, gc: 2, gd: 12,
-      assignedUsers: 78,
-      objects: [
-        {
-          id: 10,
-          object: "P_PERNR_REP",
-          classification: "GC Core Use",
-          fieldName: "ACTVT",
-          valueLow: "03",
-          valueHigh: "",
-          action: null,
-          newValue: "",
-          isNew: false
-        }
-      ]
-    },
-    {
-      id: "SAP_CO_COST_CENTER_ACCOUNTING",
-      description: "Controlling Cost Center Accounting",
-      classification: "GC Core Use",
-      gb: 0, gc: 1, gd: 8,
-      assignedUsers: 67,
-      objects: [
-        {
-          id: 11,
-          object: "K_CSKS_MNT",
-          classification: "GC Core Use",
-          fieldName: "ACTVT",
-          valueLow: "02",
-          valueHigh: "",
-          action: null,
-          newValue: "",
-          isNew: false
-        }
-      ]
-    },
-    {
-      id: "SAP_QM_QUALITY_MANAGEMENT",
-      description: "Quality Management System",
-      classification: "GB Advanced Use",
-      gb: 1, gc: 0, gd: 15,
-      assignedUsers: 56,
-      objects: [
-        {
-          id: 12,
-          object: "Q_QALS_CHG",
-          classification: "GB Advanced Use",
-          fieldName: "ACTVT",
-          valueLow: "02",
-          valueHigh: "",
-          action: null,
-          newValue: "",
-          isNew: false
-        }
-      ]
-    },
-    {
-      id: "SAP_WM_WAREHOUSE_MANAGEMENT",
-      description: "Warehouse Management System",
-      classification: "GD Self-Service Use",
-      gb: 0, gc: 0, gd: 34,
-      assignedUsers: 123,
-      objects: [
-        {
-          id: 13,
-          object: "L_LAGP_REP",
-          classification: "GD Self-Service Use",
-          fieldName: "ACTVT",
-          valueLow: "03",
-          valueHigh: "",
-          action: null,
-          newValue: "",
-          isNew: false
-        }
-      ]
-    },
-    {
-      id: "SAP_PM_PLANT_MAINTENANCE",
-      description: "Plant Maintenance and Service Management",
-      classification: "GB Advanced Use",
-      gb: 1, gc: 1, gd: 19,
-      assignedUsers: 89,
-      objects: [
-        {
-          id: 14,
-          object: "I_EQUI_CHG",
-          classification: "GB Advanced Use",
-          fieldName: "ACTVT",
-          valueLow: "02",
-          valueHigh: "",
-          action: null,
-          newValue: "",
-          isNew: false
-        }
-      ]
-    },
-    {
-      id: "SAP_PS_PROJECT_SYSTEM",
-      description: "Project System Management",
-      classification: "GC Core Use",
-      gb: 0, gc: 1, gd: 7,
-      assignedUsers: 45,
-      objects: [
-        {
-          id: 15,
-          object: "K_PROJECT_REP",
-          classification: "GC Core Use",
-          fieldName: "ACTVT",
-          valueLow: "03",
-          valueHigh: "",
-          action: null,
-          newValue: "",
-          isNew: false
-        }
-      ]
-    },
-    {
-      id: "SAP_BC_BASIS_ADMINISTRATION",
-      description: "Basis System Administration",
-      classification: "GB Advanced Use",
-      gb: 3, gc: 0, gd: 2,
-      assignedUsers: 12,
-      objects: [
-        {
-          id: 16,
-          object: "S_TCODE",
-          classification: "GB Advanced Use",
-          fieldName: "TCD",
-          valueLow: "SM*",
-          valueHigh: "",
-          action: null,
-          newValue: "",
-          isNew: false
-        }
-      ]
-    },
-    {
-      id: "SAP_TR_TREASURY_MANAGEMENT",
-      description: "Treasury and Risk Management",
-      classification: "GC Core Use",
-      gb: 0, gc: 2, gd: 5,
-      assignedUsers: 34,
-      objects: [
-        {
-          id: 17,
-          object: "F_TR_TABLE",
-          classification: "GC Core Use",
-          fieldName: "ACTVT",
-          valueLow: "03",
-          valueHigh: "",
-          action: null,
-          newValue: "",
-          isNew: false
-        }
-      ]
-    },
-    {
-      id: "SAP_IS_INDUSTRY_SOLUTIONS",
-      description: "Industry-Specific Solutions",
-      classification: "GD Self-Service Use",
-      gb: 0, gc: 0, gd: 25,
-      assignedUsers: 87,
-      objects: [
-        {
-          id: 18,
-          object: "IS_OIL_REP",
-          classification: "GD Self-Service Use",
-          fieldName: "ACTVT",
-          valueLow: "03",
-          valueHigh: "",
-          action: null,
-          newValue: "",
-          isNew: false
-        }
-      ]
-    },
-    {
-      id: "SAP_LE_LOGISTICS_EXECUTION",
-      description: "Logistics Execution and Transportation",
-      classification: "GB Advanced Use",
-      gb: 1, gc: 0, gd: 18,
-      assignedUsers: 76,
-      objects: [
-        {
-          id: 19,
-          object: "V_LIKP_VST",
-          classification: "GB Advanced Use",
-          fieldName: "ACTVT",
-          valueLow: "01",
-          valueHigh: "",
-          action: null,
-          newValue: "",
-          isNew: false
-        }
-      ]
-    },
-    {
-      id: "SAP_CRM_CUSTOMER_RELATIONSHIP",
-      description: "Customer Relationship Management",
-      classification: "GC Core Use",
-      gb: 0, gc: 1, gd: 22,
-      assignedUsers: 98,
-      objects: [
-        {
-          id: 20,
-          object: "CRM_OPPORTUNITY",
-          classification: "GC Core Use",
-          fieldName: "ACTVT",
-          valueLow: "02",
-          valueHigh: "",
-          action: null,
-          newValue: "",
-          isNew: false
-        }
-      ]
-    }
-  ];
+  getSpecificRoleDetailsforSim, 
 
-  // Filter roles based on search and license type
-  const filteredRoles = roles.filter(role => {
-    const matchesSearch = role.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         role.description.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesLicense = licenseFilter === "all" || role.classification.includes(licenseFilter);
-    return matchesSearch && matchesLicense;
-  }).slice(0, 10); // Show only 10 entries
+  getAuthObjFieldLicData, 
 
-  const handleRoleSelect = (role: any) => {
-    setSelectedRole(role);
-    setEditedObjects([...role.objects]);
-    setIsEditing(false);
-  };
+  applySimulationChangesToDb, 
 
-  const handleEditClick = () => {
-    setIsEditing(true);
-  };
+  getLicenseClassificationPivotTable, 
 
-  const updateObjectAction = (objectId: number, action: string) => {
-    setEditedObjects(prev => 
-      prev.map(obj => 
-        obj.id === objectId ? { ...obj, action, newValue: action === "Remove" ? "" : obj.newValue } : obj
-      )
-    );
-    setHasChanges(true);
-    setSavedChanges(false);
-  };
+  AuthObjectFieldLicenseData, 
 
-  const updateObjectNewValue = (objectId: number, newValue: string) => {
-    setEditedObjects(prev => 
-      prev.map(obj => 
-        obj.id === objectId ? { ...obj, newValue } : obj
-      )
-    );
-    setHasChanges(true);
-    setSavedChanges(false);
-  };
+  SimulationChangePayload, 
 
-  const updateObjectField = (objectId: number, field: string, value: string) => {
-    setEditedObjects(prev => 
-      prev.map(obj => 
-        obj.id === objectId ? { ...obj, [field]: value } : obj
-      )
-    );
-    setHasChanges(true);
-    setSavedChanges(false);
-  };
+  AddSuggestion, 
 
-  const handleAddObject = () => {
-    const newObject = {
-      id: Date.now(),
-      object: "",
-      classification: "",
-      fieldName: "",
-      valueLow: "",
-      valueHigh: "",
-      action: "Add",
-      newValue: "",
-      isNew: true
-    };
-    setEditedObjects(prev => [...prev, newObject]);
-    setHasChanges(true);
-    setSavedChanges(false);
-  };
+  getAddSuggestions, 
 
-  const handleSave = () => {
-    console.log("Saving changes for role:", selectedRole?.id, "Objects:", editedObjects);
-    setIsEditing(false);
-    setSavedChanges(true);
-    setHasChanges(false);
+  createSimulationTable 
+
+} from "@/api/simulation_api"; 
+import FilterObjects from "@/components/FilterObjects";
+
+ 
+
+interface Role { 
+
+  id: string; 
+
+  description: string; 
+
+  classification: string; 
+
+  gb: number; 
+
+  gc: number; 
+
+  gd: number; 
+
+  assignedUsers: number; 
+
+  objects: any[]; 
+
+} 
+
+ 
+
+ 
+
+interface ObjectDetail { 
+
+  id: number; 
+
+  object: string; 
+
+  classification: string; 
+
+  fieldName: string; 
+
+  valueLow: string; 
+
+  valueHigh: string; 
+
+  ttext?: string; 
+
+  action: string | null; 
+
+  newValue: string; 
+
+  isNew: boolean; 
+
+  dynamicLicenseOptions?: { value: string; label: string }[]; 
+
+  addSuggestions?: AddSuggestion[]; // Add this line 
+
+  selectedLicense?: string; // Add this line 
+
+} 
+
+ 
+
+interface AllEditedObjects { 
+
+  [roleId: string]: ObjectDetail[]; 
+
+} 
+
+ 
+
+interface PendingChangesSummary { 
+
+  totalChanges: number; 
+
+  changesByAction: Record<string, number>; 
+
+} 
+
+ 
+
+const CreateSimulation = () => { 
+
+  const navigate = useNavigate(); 
+
+  const { toast } = useToast(); 
+
+  const [searchTerm, setSearchTerm] = useState(""); 
+
+  const [licenseFilter, setLicenseFilter] = useState("all"); 
+
+  const [selectedRole, setSelectedRole] = useState<Role | null>(null); 
+
+  const [currentEditedObjects, setCurrentEditedObjects] = useState<ObjectDetail[]>([]); 
+
+  const [hasChanges, setHasChanges] = useState(false); 
+  const [objectSearchTerm, setObjectSearchTerm] = useState("");
+
+  const [isEditing, setIsEditing] = useState(false); 
+
+  const [savedChanges, setSavedChanges] = useState(false); 
+
+  const [roles, setRoles] = useState<Role[]>([]); 
+
+  const [loading, setLoading] = useState(false); 
+
+  const [error, setError] = useState<string | null>(null); 
+
+  const [clientName, setClientName] = useState(""); 
+
+  const [systemName, setSystemName] = useState(""); 
+
+  const [isLoadingRoles, setIsLoadingRoles] = useState(false); 
+
+  const [dataLoaded, setDataLoaded] = useState(false); 
+
+  const [loadingDynamicOptions, setLoadingDynamicOptions] = useState<{ [key: number]: boolean }>({}); 
+
+  const [allEditedObjects, setAllEditedObjects] = useState<AllEditedObjects>({}); 
+
+  const [simulationRunning, setSimulationRunning] = useState(false); 
+
+  const [isCreatingTable, setIsCreatingTable] = useState(false); 
+
+const [systemReleaseInfo, setSystemReleaseInfo] = useState(""); 
+
+ 
+
+  const getLocalStorageKey = (roleId: string, client: string, system: string) => 
+
+    `edited_objects_${roleId}_${client}_${system}`; 
+
+ 
+
+  const getAllRolesLocalStorageKey = (client: string, system: string) => 
+
+    `all_edited_roles_${client}_${system}`; 
+
+ 
+
+  useEffect(() => { 
+
+    if (clientName && systemName) { 
+
+      const storedAllEditedObjects = localStorage.getItem(getAllRolesLocalStorageKey(clientName, systemName)); 
+
+      if (storedAllEditedObjects) { 
+
+        try { 
+
+          const parsed = JSON.parse(storedAllEditedObjects); 
+
+          setAllEditedObjects(parsed); 
+
+        } catch (e) { 
+
+          console.error("Failed to parse allEditedObjects from localStorage:", e); 
+
+          localStorage.removeItem(getAllRolesLocalStorageKey(clientName, systemName)); 
+
+        } 
+
+      } 
+
+    } 
+
+  }, [clientName, systemName]); 
+
+ 
+
+  // Sync currentEditedObjects with allEditedObjects when selectedRole changes 
+
+  useEffect(() => { 
+
+    if (selectedRole && allEditedObjects[selectedRole.id]) { 
+
+      setCurrentEditedObjects(allEditedObjects[selectedRole.id]); 
+
+      setHasChanges(true); 
+
+      setSavedChanges(true); 
+
+    } else if (selectedRole) { 
+
+      setCurrentEditedObjects(selectedRole.objects); 
+
+      setHasChanges(false); 
+
+      setSavedChanges(false); 
+
+    } 
+
+  }, [selectedRole, allEditedObjects]); 
+
+ 
+
+  const fetchRoles = async () => { 
+
+    if (!clientName.trim() || !systemName.trim()) { 
+
+      toast({ 
+
+        title: "Missing Information", 
+
+        description: "Please enter both client name and system name.", 
+
+        variant: "destructive", 
+
+      }); 
+
+      return; 
+
+    } 
+
+ 
+
+    setIsLoadingRoles(true); 
+
+    setError(null); 
+
+    setRoles([]); 
+
+    setSelectedRole(null); 
+
+    setCurrentEditedObjects([]); 
+
+    setAllEditedObjects({}); 
+
+    localStorage.removeItem(getAllRolesLocalStorageKey(clientName, systemName)); 
+
+ 
+
+    try { 
+
+      const roleData = await getRoleDetailsforSim(clientName.trim(), systemName.trim()); 
+
+ 
+
+      const transformedRoles: Role[] = roleData.map(role => ({ 
+
+        id: role.id, 
+
+        description: role.description, 
+
+        classification: role.classification, 
+
+        gb: role.gb, 
+
+        gc: role.gc, 
+
+        gd: role.gd, 
+
+        assignedUsers: role.assignedUsers, 
+
+        objects: [] 
+
+      })); 
+
+ 
+
+      setRoles(transformedRoles); 
+
+      setDataLoaded(true); 
+
+ 
+
+      toast({ 
+
+        title: "Success", 
+
+        description: `Loaded ${transformedRoles.length} roles successfully.`, 
+
+      }); 
+
+    } catch (err) { 
+
+      setError(err instanceof Error ? err.message : 'Failed to fetch roles'); 
+
+      toast({ 
+
+        title: "Error", 
+
+        description: "Failed to fetch roles. Please check your client and system names.", 
+
+        variant: "destructive", 
+
+      }); 
+
+    } finally { 
+
+      setIsLoadingRoles(false); 
+
+    } 
+
+  }; 
+
+ 
+
+  const reloadAllData = () => { 
+
+    fetchRoles(); 
+
+  }; 
+
+ 
+
+  const filteredRoles = roles.filter(role => { 
+
+    const matchesSearch = role.id.toLowerCase().includes(searchTerm.toLowerCase()) || 
+
+      role.description.toLowerCase().includes(searchTerm.toLowerCase()); 
+
+    const matchesLicense = licenseFilter === "all" || role.classification.includes(licenseFilter); 
+
+    return matchesSearch && matchesLicense; 
+
+  }).slice(0, 10); 
+
+ 
+
+  const handleRoleSelect = async (role: Role) => { 
+
+    if (!clientName.trim() || !systemName.trim()) { 
+
+      toast({ 
+
+        title: "Missing Information", 
+
+        description: "Please enter both client name and system name.", 
+
+        variant: "destructive", 
+
+      }); 
+
+      return; 
+
+    } 
+
+ 
+
+    setLoading(true); 
+
+    try { 
+
+      const roleDetails = await getSpecificRoleDetailsforSim(role.id, clientName.trim(), systemName.trim()); 
+
+ 
+
+      const transformedObjects: ObjectDetail[] = roleDetails.objectDetails.map((obj, index) => ({ 
+
+        id: index + 1, 
+
+        object: obj.object, 
+
+        classification: obj.classification, 
+
+        fieldName: obj.fieldName, 
+
+        valueLow: obj.valueLow, 
+
+        valueHigh: obj.valueHigh, 
+
+        ttext: obj.ttext, 
+
+        action: null, 
+
+        newValue: "", 
+
+        isNew: false, 
+
+        dynamicLicenseOptions: undefined 
+
+      })); 
+
+ 
+
+      const updatedRole = { 
+
+        ...role, 
+
+        objects: transformedObjects 
+
+      }; 
+
+ 
+
+      setSelectedRole(updatedRole); 
+
+ 
+
+      let objectsToDisplay = transformedObjects; 
+
+      if (allEditedObjects[role.id]) { 
+
+        const savedForThisRole = allEditedObjects[role.id]; 
+
+        const mergedObjects = transformedObjects.map(originalObj => { 
+
+          const savedObj = savedForThisRole.find(p => p.id === originalObj.id); 
+
+          return savedObj ? { ...originalObj, ...savedObj } : originalObj; 
+
+        }); 
+
+        const newObjectsFromSaved = savedForThisRole.filter(p => p.isNew && !transformedObjects.some(o => o.id === p.id)); 
+
+        objectsToDisplay = [...mergedObjects, ...newObjectsFromSaved]; 
+
+ 
+
+        setHasChanges(true); 
+
+        setSavedChanges(true); 
+
+        toast({ 
+
+            title: "Unsaved Changes Loaded", 
+
+            description: "Previous unsaved changes for this role have been loaded.", 
+
+        }); 
+
+      } else { 
+
+        setHasChanges(false); 
+
+        setSavedChanges(false); 
+
+      } 
+
+ 
+
+      setCurrentEditedObjects(objectsToDisplay); 
+
+      setIsEditing(false); 
+
+    } catch (err) { 
+
+      setError(err instanceof Error ? err.message : 'Failed to fetch role details'); 
+
+      toast({ 
+
+        title: "Error", 
+
+        description: "Failed to fetch role details. Please try again.", 
+
+        variant: "destructive", 
+
+      }); 
+
+    } finally { 
+
+      setLoading(false); 
+
+    } 
+
+  }; 
+
+ 
+
+  const handleEditClick = () => { 
+
+    setIsEditing(true); 
+
+  }; 
+
+  const fetchAddSuggestions = async (objId: number, authorizationObject: string, fieldName: string) => { 
+
+  if (!clientName.trim() || !systemName.trim()) { 
+
+    toast({ 
+
+      title: "Missing Data", 
+
+      description: "Cannot fetch suggestions: Client or System Name is missing.", 
+
+      variant: "destructive", 
+
+    }); 
+
+    return; 
+
+  } 
+
+ 
+
+  setLoadingDynamicOptions(prev => ({ ...prev, [objId]: true })); 
+
+  try { 
+
+    const suggestions = await getAddSuggestions(authorizationObject, fieldName, clientName, systemName); 
+
+ 
+
+    setCurrentEditedObjects(prev => { 
+
+      const updated = prev.map(obj => 
+
+        obj.id === objId ? {  
+
+          ...obj,  
+
+          addSuggestions: suggestions, 
+
+          // Pre-populate first suggestion if available 
+
+          ...(suggestions.length > 0 && !obj.valueLow ? { 
+
+            valueLow: suggestions[0].value, 
+
+            selectedLicense: suggestions[0].license, 
+
+            newValue: suggestions[0].ui_text 
+
+          } : {}) 
+
+        } : obj 
+
+      ); 
+
+      if (selectedRole) { 
+
+        setAllEditedObjects(prevAll => { 
+
+          const newAll = { ...prevAll, [selectedRole.id]: updated }; 
+
+          localStorage.setItem(getAllRolesLocalStorageKey(clientName.trim(), systemName.trim()), JSON.stringify(newAll)); 
+
+          return newAll; 
+
+        }); 
+
+      } 
+
+      return updated; 
+
+    }); 
+
+  } catch (err) { 
+
+    toast({ 
+
+      title: "Error", 
+
+      description: `Failed to fetch suggestions for ${authorizationObject}/${fieldName}.`, 
+
+      variant: "destructive", 
+
+    }); 
+
+    console.error(`Error fetching add suggestions for ${authorizationObject}/${fieldName}:`, err); 
+
+  } finally { 
+
+    setLoadingDynamicOptions(prev => ({ ...prev, [objId]: false })); 
+
+  } 
+
+}; 
+
+ 
+
+ 
+
+const handleCreateSimulationTable = async () => { 
+
+  if (!clientName.trim() || !systemName.trim() || !systemReleaseInfo.trim()) { 
+
+    toast({ 
+
+      title: "Missing Information", 
+
+      description: "Please enter client name, system name, and system release info.", 
+
+      variant: "destructive", 
+
+    }); 
+
+    return; 
+
+  } 
+
+ 
+
+  setIsCreatingTable(true); 
+
+  try { 
+
+    const result = await createSimulationTable( 
+
+      clientName.trim(),  
+
+      systemName.trim(), 
+
+      systemReleaseInfo.trim() 
+
+    ); 
+
+ 
+
+    toast({ 
+
+      title: "Simulation Table Created", 
+
+      description: result.message, 
+
+      variant: "default", 
+
+    }); 
+
+ 
+
+    // After creating the table, load the data 
+
+    await fetchRoles(); 
+
+     
+
+  } catch (err) { 
+
+    setError(err instanceof Error ? err.message : 'Failed to create simulation table'); 
+
+    toast({ 
+
+      title: "Error", 
+
+      description: "Failed to create simulation table. Please try again.", 
+
+      variant: "destructive", 
+
+    }); 
+
+  } finally { 
+
+    setIsCreatingTable(false); 
+
+  } 
+
+}; 
+
+ 
+
+ 
+
+ const fetchDynamicLicenseOptions = async (objId: number, authorizationObject: string, fieldName: string) => { 
+
+  if (!clientName.trim() || !systemName.trim()) { 
+
+    toast({ 
+
+      title: "Missing Data", 
+
+      description: "Cannot fetch new values: Client or System Name is missing.", 
+
+      variant: "destructive", 
+
+    }); 
+
+    return; 
+
+  } 
+
+ 
+
+  setLoadingDynamicOptions(prev => ({ ...prev, [objId]: true })); 
+
+  try { 
+
+    const data = await getAuthObjFieldLicData(authorizationObject, fieldName, clientName, systemName); 
+
+    const options = data 
+
+      .filter(item => item.UI_TEXT != null && item.UI_TEXT.trim() !== '') 
+
+      .map(item => ({ value: item.UI_TEXT, label: item.UI_TEXT })); 
+
+ 
+
+    setCurrentEditedObjects(prev => { 
+
+      const updated = prev.map(obj => 
+
+        obj.id === objId ? { ...obj, dynamicLicenseOptions: options } : obj 
+
+      ); 
+
+      if (selectedRole) { 
+
+        setAllEditedObjects(prevAll => { 
+
+          const newAll = { ...prevAll, [selectedRole.id]: updated }; 
+
+          localStorage.setItem(getAllRolesLocalStorageKey(clientName.trim(), systemName.trim()), JSON.stringify(newAll)); 
+
+          return newAll; 
+
+        }); 
+
+      } 
+
+      return updated; 
+
+    }); 
+
+  } catch (err) { 
+
+    toast({ 
+
+      title: "Error", 
+
+      description: `Failed to fetch new values for ${authorizationObject}/${fieldName}.`, 
+
+      variant: "destructive", 
+
+    }); 
+
+    console.error(`Error fetching dynamic options for ${authorizationObject}/${fieldName}:`, err); 
+
+  } finally { 
+
+    setLoadingDynamicOptions(prev => ({ ...prev, [objId]: false })); 
+
+  } 
+
+}; 
+
+ 
+
+ 
+
+const updateObjectAction = (objectId: number, action: string) => { 
+
+  setCurrentEditedObjects(prev => { 
+
+    const updated = prev.map(obj => { 
+
+      if (obj.id === objectId) { 
+
+        if (action === "Change" && !obj.isNew) { 
+
+          if (obj.object && obj.fieldName) { 
+
+            fetchDynamicLicenseOptions(obj.id, obj.object, obj.fieldName); 
+
+          } else { 
+
+            toast({ 
+
+              title: "Missing Object Data", 
+
+              description: "Cannot fetch new values: Authorization Object or Field Name is missing for this row.", 
+
+              variant: "destructive", 
+
+            }); 
+
+          } 
+
+        } else if (action === "Add" && obj.isNew) { 
+
+          // For Add operations on new objects, fetch suggestions 
+
+          if (obj.object && obj.fieldName) { 
+
+            fetchAddSuggestions(obj.id, obj.object, obj.fieldName); 
+
+          } 
+
+        } 
+
+        return {  
+
+          ...obj,  
+
+          action,  
+
+          newValue: action === "Remove" ? "" : obj.newValue, 
+
+          // Reset suggestions when changing action 
+
+          ...(action !== "Add" ? { addSuggestions: undefined, selectedLicense: undefined } : {}), 
+
+          ...(action !== "Change" ? { dynamicLicenseOptions: undefined } : {}) 
+
+        }; 
+
+      } 
+
+      return obj; 
+
+    }); 
+
+ 
+
+    if (selectedRole) { 
+
+      setAllEditedObjects(prevAll => { 
+
+        const newAll = { ...prevAll, [selectedRole.id]: updated }; 
+
+        localStorage.setItem(getAllRolesLocalStorageKey(clientName.trim(), systemName.trim()), JSON.stringify(newAll)); 
+
+        return newAll; 
+
+      }); 
+
+    } 
+
+    setHasChanges(true); 
+
+    setSavedChanges(false); 
+
+    return updated; 
+
+  }); 
+
+}; 
+
+ 
+
+const handleAddSuggestionSelect = (objectId: number, suggestion: AddSuggestion) => { 
+
+  setCurrentEditedObjects(prev => { 
+
+    const updated = prev.map(obj => 
+
+      obj.id === objectId ? {  
+
+        ...obj,  
+
+        valueLow: suggestion.value, 
+
+        selectedLicense: suggestion.license, 
+
+        newValue: suggestion.ui_text 
+
+      } : obj 
+
+    ); 
+
+ 
+
+    if (selectedRole) { 
+
+      setAllEditedObjects(prevAll => { 
+
+        const newAll = { ...prevAll, [selectedRole.id]: updated }; 
+
+        localStorage.setItem(getAllRolesLocalStorageKey(clientName.trim(), systemName.trim()), JSON.stringify(newAll)); 
+
+        return newAll; 
+
+      }); 
+
+    } 
+
+    setHasChanges(true); 
+
+    setSavedChanges(false); 
+
+    return updated; 
+
+  }); 
+
+}; 
+
+ 
+
+   
+
+ 
+
+  const updateObjectNewValue = (objectId: number, newValue: string) => { 
+
+    setCurrentEditedObjects(prev => { 
+
+      const updated = prev.map(obj => 
+
+        obj.id === objectId ? { ...obj, newValue } : obj 
+
+      ); 
+
+      if (selectedRole) { 
+
+        setAllEditedObjects(prevAll => { 
+
+          const newAll = { ...prevAll, [selectedRole.id]: updated }; 
+
+          localStorage.setItem(getAllRolesLocalStorageKey(clientName.trim(), systemName.trim()), JSON.stringify(newAll)); 
+
+          return newAll; 
+
+        }); 
+
+      } 
+
+      setHasChanges(true); 
+
+      setSavedChanges(false); 
+
+      return updated; 
+
+    }); 
+
+  }; 
+
+ 
+
+  const updateObjectField = (objectId: number, field: string, value: string) => { 
+
+    setCurrentEditedObjects(prev => { 
+
+      const updated = prev.map(obj => 
+
+        obj.id === objectId ? { ...obj, [field]: value } : obj 
+
+      ); 
+
+      if (selectedRole) { 
+
+        setAllEditedObjects(prevAll => { 
+
+          const newAll = { ...prevAll, [selectedRole.id]: updated }; 
+
+          localStorage.setItem(getAllRolesLocalStorageKey(clientName.trim(), systemName.trim()), JSON.stringify(newAll)); 
+
+          return newAll; 
+
+        }); 
+
+      } 
+
+      setHasChanges(true); 
+
+      setSavedChanges(false); 
+
+      return updated; 
+
+    }); 
+
+  }; 
+
+ 
+
+ 
+
+const handleAddObject = () => { 
+
+  const newObject: ObjectDetail = { 
+
+    id: Date.now(), 
+
+    object: "", 
+
+    classification: "", 
+
+    fieldName: "", 
+
+    valueLow: "", 
+
+    valueHigh: "", 
+
+    ttext: "", 
+
+    action: "Add", 
+
+    newValue: "", 
+
+    isNew: true, 
+
+    dynamicLicenseOptions: undefined, 
+
+    addSuggestions: undefined, 
+
+    selectedLicense: undefined 
+
+  }; 
+
+  setCurrentEditedObjects(prev => { 
+
+    const updated = [...prev, newObject]; 
+
+    if (selectedRole) { 
+
+      setAllEditedObjects(prevAll => { 
+
+        const newAll = { ...prevAll, [selectedRole.id]: updated }; 
+
+        localStorage.setItem(getAllRolesLocalStorageKey(clientName.trim(), systemName.trim()), JSON.stringify(newAll)); 
+
+        return newAll; 
+
+      }); 
+
+    } 
+
+    setHasChanges(true); 
+
+    setSavedChanges(false); 
+
+    return updated; 
+
+  }); 
+
+}; 
+
+  const handleSave = () => { 
+
+    if (selectedRole) { 
+
+        setSavedChanges(true); 
+
+        toast({ 
+
+            title: "Changes Saved Locally", 
+
+            description: `Changes for role '${selectedRole.id}' have been saved to your browser. Click "Run Simulation" to apply to database.`, 
+
+            variant: "default", 
+
+        }); 
+
+    } 
+
+    setIsEditing(false); 
+
+  }; 
+
+   
+
+ 
+
+  const handleReset = () => { 
+
+    if (selectedRole) { 
+
+      setCurrentEditedObjects([...selectedRole.objects]); 
+
+      setHasChanges(false); 
+
+      setIsEditing(false); 
+
+      setSavedChanges(false); 
+
+      setAllEditedObjects(prevAll => { 
+
+        const newAll = { ...prevAll }; 
+
+        delete newAll[selectedRole.id]; 
+
+        localStorage.setItem(getAllRolesLocalStorageKey(clientName.trim(), systemName.trim()), JSON.stringify(newAll)); 
+
+        return newAll; 
+
+      }); 
+
+      toast({ 
+
+        title: "Changes Reset", 
+
+        description: "All unsaved changes for this role have been discarded.", 
+
+        variant: "default", 
+
+      }); 
+
+    } 
+
+  }; 
+
+ 
+
+  const generateRequestNumber = () => { 
+
+    return `SIM${String(Date.now()).slice(-6)}`; 
+
+  }; 
+
+ 
+
+  // Validate simulation changes before sending 
+
+  const validateSimulationChanges = (changes: SimulationChangePayload[]) => { 
+
+    const errors = []; 
+
+ 
+
+    for (const change of changes) { 
+
+      // Check required fields 
+
+      if (!change.role_id || !change.object || !change.field_name) { 
+
+        errors.push(`Missing required fields for change: ${JSON.stringify(change)}`); 
+
+      } 
+
+ 
+
+      // Validate action types 
+
+      if (!["Add", "Change", "Remove"].includes(change.action)) { 
+
+        errors.push(`Invalid action '${change.action}' for role ${change.role_id}`); 
+
+      } 
+
+ 
+
+      // For Add operations, ensure we have value_low 
+
+      if (change.action === "Add" && !change.value_low) { 
+
+        errors.push(`Add operation requires value_low for role ${change.role_id}`); 
+
+      } 
+
+ 
+
+      // For Change operations, ensure we have new_value_ui_text 
+
+      if (change.action === "Change" && !change.new_value_ui_text) { 
+
+        errors.push(`Change operation requires new_value_ui_text for role ${change.role_id}`); 
+
+      } 
+
+    } 
+
+ 
+
+    return errors; 
+
+  }; 
+
+ const handleRunSimulation = async () => {
+  if (!clientName.trim() || !systemName.trim()) {
     toast({
-      title: "Changes Saved",
-      description: "Role changes have been saved successfully.",
+      title: "Missing Information",
+      description: "Please enter both client name and system name.",
+      variant: "destructive",
     });
-  };
+    return;
+  }
 
-  const handleReset = () => {
+  setSimulationRunning(true);
+  setError(null);
+
+  try {
+    const allChangesToSend: SimulationChangePayload[] = [];
+
+    // Get all roles that have any changes stored in localStorage
+    const rolesWithChanges = Object.keys(allEditedObjects);
+
+    if (rolesWithChanges.length === 0) {
+      toast({
+        title: "No Changes to Simulate",
+        description: "No pending changes found to apply to the database.",
+        variant: "default",
+      });
+      return;
+    }
+
+    // Iterate through all roles that have edited objects
+    for (const roleId of rolesWithChanges) {
+      const roleChanges = allEditedObjects[roleId];
+
+      const changesForThisRole = roleChanges
+        .filter(obj => obj.action !== null && obj.action !== "")
+        .map(obj => ({
+          role_id: roleId,
+          object: obj.object,
+          field_name: obj.fieldName,
+          value_low: obj.valueLow,
+          value_high: obj.valueHigh,
+          ttext: obj.ttext || "",
+          classification: obj.classification,
+          action: obj.action as "Add" | "Change" | "Remove",
+          new_value_ui_text: obj.newValue || "",
+          is_new_object: obj.isNew,
+          frontend_id: obj.id,
+          selected_license: obj.action === "Add" ? obj.selectedLicense : undefined
+        }));
+
+      allChangesToSend.push(...changesForThisRole);
+    }
+
+    if (allChangesToSend.length === 0) {
+      toast({
+        title: "No Valid Changes",
+        description: "No valid changes found to apply to the database. Please ensure you have selected actions for your changes.",
+        variant: "default",
+      });
+      return;
+    }
+
+    // Validate changes
+    const validationErrors = validateSimulationChanges(allChangesToSend);
+    if (validationErrors.length > 0) {
+      setError(`Validation errors: ${validationErrors.join('; ')}`);
+      toast({
+        title: "Validation Error",
+        description: "Please fix the validation errors before running the simulation.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Show confirmation with details
+    const changesSummary = allChangesToSend.reduce((acc, change) => {
+      acc[change.action] = (acc[change.action] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    const summaryText = Object.entries(changesSummary)
+      .map(([action, count]) => `${count} ${action}${count > 1 ? 's' : ''}`)
+      .join(', ');
+
+    console.log(`About to send ${allChangesToSend.length} changes: ${summaryText}`);
+
+    // Step 1: Send changes to backend
+    const response = await applySimulationChangesToDb(clientName.trim(), systemName.trim(), allChangesToSend);
+    console.log("Backend response:", response);
+
+    // Step 2: Run the simulation after changes are applied
+    toast({
+      title: "Changes Applied",
+      description: "Changes applied successfully. Running simulation...",
+      variant: "default",
+    });
+
+    const simulationResult = await runSimulation(clientName.trim(), systemName.trim());
+    console.log("Simulation result:", simulationResult);
+
+    // Generate request number for tracking
+    const requestNumber = generateRequestNumber();
+
+    // Clear all localStorage after successful completion
+    localStorage.removeItem(getAllRolesLocalStorageKey(clientName.trim(), systemName.trim()));
+    setAllEditedObjects({});
+
+    // Clear current view
     if (selectedRole) {
-      setEditedObjects([...selectedRole.objects]);
+      setCurrentEditedObjects([...selectedRole.objects]);
       setHasChanges(false);
-      setIsEditing(false);
       setSavedChanges(false);
     }
-  };
 
-  const generateRequestNumber = () => {
-    return `SIM${String(Date.now()).slice(-6)}`;
-  };
-
-  const handleRunSimulation = () => {
-    const requestNumber = generateRequestNumber();
-    
     toast({
-      title: "Simulation Request Submitted",
-      description: `Request for Simulation Run has been submitted. Request Number: ${requestNumber}`,
+      title: "Simulation Completed Successfully",
+      description: `Changes applied and simulation completed. ${summaryText}. Request: ${requestNumber}`,
+      variant: "default",
     });
-    
-    // Navigate back to simulation run page
+
+    // Navigate after a short delay
     setTimeout(() => {
       navigate("/simulation-run");
     }, 2000);
-  };
 
-  return (
-    <Layout title="Create New Simulation">
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <Link to="/simulation-run" className="flex items-center text-blue-600">
-            <ArrowLeft className="mr-1 h-4 w-4" /> Back to Simulation Run
-          </Link>
-        </div>
-
-        <FilterRoles
-          searchTerm={searchTerm}
-          setSearchTerm={setSearchTerm}
-          licenseFilter={licenseFilter}
-          setLicenseFilter={setLicenseFilter}
-        />
-
-        <RoleProfileSummary
-          filteredRoles={filteredRoles}
-          selectedRole={selectedRole}
-          onRoleSelect={handleRoleSelect}
-          onRunSimulation={handleRunSimulation}
-          savedChanges={savedChanges}
-        />
-
-        <AuthorizationObjects
-          selectedRole={selectedRole}
-          editedObjects={editedObjects}
-          isEditing={isEditing}
-          onEditClick={handleEditClick}
-          onSave={handleSave}
-          onReset={handleReset}
-          onAddObject={handleAddObject}
-          updateObjectAction={updateObjectAction}
-          updateObjectNewValue={updateObjectNewValue}
-          updateObjectField={updateObjectField}
-        />
-      </div>
-    </Layout>
-  );
+  } catch (err) {
+    console.error("Error running simulation:", err);
+    const errorMessage = err instanceof Error ? err.message : 'Failed to run simulation';
+    setError(errorMessage);
+    toast({
+      title: "Error Running Simulation",
+      description: `Failed to apply changes or run simulation: ${errorMessage}`,
+      variant: "destructive",
+    });
+  } finally {
+    setSimulationRunning(false);
+  }
 };
 
-export default CreateSimulation;
+  const handleKeyPress = (e: React.KeyboardEvent) => { 
+
+    if (e.key === 'Enter') { 
+
+      reloadAllData(); 
+
+    } 
+
+  }; 
+
+ 
+
+
+  const getPendingChangesSummary = (): PendingChangesSummary | null => { 
+
+    const totalChanges = Object.values(allEditedObjects).reduce((total, roleChanges) => { 
+
+      return total + roleChanges.filter(obj => obj.action !== null && obj.action !== "").length; 
+
+    }, 0); 
+
+ 
+
+    if (totalChanges === 0) return null; 
+
+ 
+
+    const changesByAction: Record<string, number> = {}; 
+
+    Object.values(allEditedObjects).forEach(roleChanges => { 
+
+      roleChanges.filter(obj => obj.action !== null && obj.action !== "").forEach(obj => { 
+
+        changesByAction[obj.action!] = (changesByAction[obj.action!] || 0) + 1; 
+
+      }); 
+
+    }); 
+
+ 
+
+    return { totalChanges, changesByAction }; 
+
+  }; 
+
+ 
+
+
+  const getRoleChangesSummary = (roleId: string): { changesCount: number; hasChanges: boolean } => { 
+
+    const roleChanges = allEditedObjects[roleId]; 
+
+    if (!roleChanges) return { changesCount: 0, hasChanges: false }; 
+
+ 
+
+    const changesCount = roleChanges.filter(obj => obj.action !== null && obj.action !== "").length; 
+
+    return { changesCount, hasChanges: changesCount > 0 }; 
+
+  }; 
+
+ 
+
+  const pendingChangesSummary = getPendingChangesSummary(); 
+
+ 
+
+  return ( 
+
+    <Layout title="Create New Simulation"> 
+
+      <div className="space-y-6"> 
+
+        <div className="flex items-center justify-between"> 
+
+          <Link to="/simulation-run" className="flex items-center text-blue-600 hover:text-blue-800"> 
+
+            <ArrowLeft className="mr-1 h-4 w-4" /> Back to Simulation Run 
+
+          </Link> 
+
+ 
+
+          {pendingChangesSummary && ( 
+
+            <div className="flex items-center gap-2"> 
+
+              <AlertCircle className="h-4 w-4 text-amber-500" /> 
+
+              <span className="text-sm text-amber-700"> 
+
+                {pendingChangesSummary.totalChanges} pending changes across {Object.keys(allEditedObjects).length} roles 
+
+              </span> 
+
+            </div> 
+
+          )} 
+
+        </div> 
+
+ 
+
+        {error && ( 
+
+          <Alert variant="destructive"> 
+
+            <AlertCircle className="h-4 w-4" /> 
+
+            <AlertDescription>{error}</AlertDescription> 
+
+          </Alert> 
+
+        )} 
+
+ 
+
+        <Card> 
+
+          <CardHeader> 
+
+            <CardTitle>System Selection</CardTitle> 
+
+          </CardHeader> 
+
+          <CardContent> 
+
+            <div className="grid gap-4 md:grid-cols-3"> {/* Changed to 3 columns */} 
+
+              <div> 
+
+                <Label htmlFor="client-name">Client Name</Label> 
+
+                <Input 
+
+                  id="client-name" 
+
+                  value={clientName} 
+
+                  onChange={(e) => setClientName(e.target.value)} 
+
+                  onKeyPress={handleKeyPress} 
+
+                  placeholder="Enter client name" 
+
+                  disabled={simulationRunning} 
+
+                /> 
+
+              </div> 
+
+              <div> 
+
+                <Label htmlFor="system-name">System Name</Label> 
+
+                <Input 
+
+                  id="system-name" 
+
+                  value={systemName} 
+
+                  onChange={(e) => setSystemName(e.target.value)} 
+
+                  onKeyPress={handleKeyPress} 
+
+                  placeholder="Enter system name" 
+
+                  disabled={simulationRunning} 
+
+                /> 
+
+              </div> 
+
+              <div className="flex items-end"> 
+
+        <Button 
+
+          onClick={reloadAllData} 
+
+          disabled={loading || isLoadingRoles || simulationRunning} 
+
+          className="flex items-center gap-2 ml-auto" 
+
+        > 
+
+          {(loading || isLoadingRoles) ? ( 
+
+            <Loader2 className="h-4 w-4 animate-spin" /> 
+
+          ) : ( 
+
+            <RefreshCw className="h-4 w-4" /> 
+
+          )} 
+
+          {(loading || isLoadingRoles) ? "Loading..." : "Load Data"} 
+
+        </Button> 
+
+       
+
+      </div> 
+            </div> 
+
+          </CardContent> 
+
+        </Card> 
+
+ 
+
+        {!dataLoaded && !isLoadingRoles && ( 
+
+          <Card> 
+
+            <CardContent className="text-center py-8"> 
+
+              <p className="text-gray-600">Please enter client name and system name, then click "Load Data" to fetch roles.</p> 
+
+            </CardContent> 
+
+          </Card> 
+
+        )} 
+
+ 
+
+        {dataLoaded && ( 
+
+          <> 
+
+            <FilterRoles 
+
+              searchTerm={searchTerm} 
+
+              setSearchTerm={setSearchTerm} 
+
+              licenseFilter={licenseFilter} 
+
+              setLicenseFilter={setLicenseFilter} 
+
+            /> 
+
+ 
+
+            <RoleProfileSummary 
+            simulationRunning={simulationRunning}
+
+              filteredRoles={filteredRoles} 
+
+              selectedRole={selectedRole} 
+
+              onRoleSelect={handleRoleSelect} 
+
+              onRunSimulation={handleRunSimulation} 
+
+              savedChanges={savedChanges} 
+
+              pendingChangesSummary={pendingChangesSummary} 
+
+              getRoleChangesSummary={getRoleChangesSummary} 
+
+            /> 
+
+          </> 
+
+        )} 
+
+ 
+
+        {/* {selectedRole && ( 
+          
+         
+        
+
+  <AuthorizationObjects 
+
+            selectedRole={selectedRole} 
+
+            editedObjects={currentEditedObjects} 
+
+            isEditing={isEditing} 
+
+            onEditClick={handleEditClick} 
+
+            onSave={handleSave} 
+
+            onReset={handleReset} 
+
+            onAddObject={handleAddObject} 
+
+            updateObjectAction={updateObjectAction} 
+
+            updateObjectNewValue={updateObjectNewValue} 
+
+            updateObjectField={updateObjectField} 
+
+            isLoadingDynamicOptions={loadingDynamicOptions} 
+
+
+             fetchDynamicLicenseOptions={function (objId: number, authorizationObject: string, fieldName: string): void { 
+
+              throw new Error("Function not implemented."); 
+
+            } }  /> 
+
+)}  */}
+{selectedRole && (
+  <>
+    <FilterObjects
+      searchTerm={objectSearchTerm}
+      setSearchTerm={setObjectSearchTerm}
+    />
+    
+    <AuthorizationObjects 
+      selectedRole={selectedRole} 
+      editedObjects={currentEditedObjects} // Keep using all objects
+      objectSearchTerm={objectSearchTerm} // Add this new prop
+      isEditing={isEditing} 
+      onEditClick={handleEditClick} 
+      onSave={handleSave} 
+      onReset={handleReset} 
+      onAddObject={handleAddObject} 
+      updateObjectAction={updateObjectAction} 
+      updateObjectNewValue={updateObjectNewValue} 
+      updateObjectField={updateObjectField} 
+      isLoadingDynamicOptions={loadingDynamicOptions} 
+      
+      fetchDynamicLicenseOptions={function (objId: number, authorizationObject: string, fieldName: string): void { 
+        throw new Error("Function not implemented."); 
+      }} 
+    />
+  </>
+)}
+
+      </div> 
+
+    </Layout> 
+
+  ); 
+
+}; 
+
+ 
+
+export default CreateSimulation; 

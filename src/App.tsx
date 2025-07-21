@@ -43,7 +43,7 @@ const App = () => (
           <Route path="/fue-calculation" element={<FueCalculation />} />
           <Route path="/simulation-run" element={<SimulationRun />} />
           <Route path="/create-simulation" element={<CreateSimulation />} />
-          <Route path="/simulation-details/:simulationId" element={<SimulationDetails />} />
+          <Route path="/simulation-details/:clientName/:systemName/:simulationRunId" element={<SimulationDetails />}/>
           <Route path="/role-details/:roleId" element={<RoleDetails />} />
           <Route path="/simulation-role-details/:roleId" element={<RoleDetails />} />
           <Route path="/log-management" element={<LogManagement />} />

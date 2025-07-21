@@ -1,311 +1,156 @@
 
-import { supabase } from "@/integrations/supabase/client";
-import { 
-  OptimizationRequest, 
-  OptimizationRequestType,
-  RoleOptimizationResult,
-  UserOptimizationResult,
-  LicenseType,
-  RatioOption
-} from "@/types/optimization";
+import {
+    getLicenseTypesAPI,
+    createOptimizationRequestAPI,
+    getAllOptimizationRequestsAPI,
+    getOptimizationResultsByRequestIdAPI,
+    LicenseType as BackendLicenseType, 
+    OptimizationRequest as BackendOptimizationRequest, 
+    CreateOptimizationRequestPayload
+} from '../api/lic_opt'; 
 
-// Mock data for license types if the database query fails
-const mockLicenseTypes: LicenseType[] = [
-  { id: "prof", name: "Professional", description: "Full access to all features" },
-  { id: "std", name: "Standard", description: "Standard feature access" },
-  { id: "basic", name: "Basic", description: "Limited feature access" },
-  { id: "self", name: "Self Service", description: "Minimal access for self-service tasks" }
-];
+import {
+    OptimizationRequest, 
+    OptimizationRequestType, 
+    RoleOptimizationResult, 
+    LicenseType, 
+    RatioOption, 
+    UserOptimizationResult
+} from "../types/optimization"; 
 
-// Mock data for ratio options if the database query fails
-const mockRatioOptions: RatioOption[] = [
-  { id: "1", value: "1:1" },
-  { id: "2", value: "1:2" },
-  { id: "3", value: "1:3" },
-  { id: "4", value: "1:4" },
-  { id: "5", value: "1:5" }
-];
 
-export const getLicenseTypes = async (): Promise<LicenseType[]> => {
-  try {
-    const { data, error } = await supabase
-      .from('license_types')
-      .select('*');
+export const getLicenseTypes = async (clientId: string, systemId: string): Promise<LicenseType[]> => {
+    if (!clientId || !systemId) {
+        return [];
+    }
+   
+    const apiLicenseTypes = await getLicenseTypesAPI(clientId, systemId);
+
     
-    if (error) throw error;
-    return data || mockLicenseTypes;
-  } catch (error) {
-    console.error("Error fetching license types:", error);
-    return mockLicenseTypes; // Fallback to mock data
-  }
+    return apiLicenseTypes.map(lt => ({
+        id: lt.id,
+        name: lt.name,
+        description: null, 
+    }));
 };
+
 
 export const getRatioOptions = async (): Promise<RatioOption[]> => {
-  try {
-    const { data, error } = await supabase
-      .from('ratio_options')
-      .select('*');
     
-    if (error) throw error;
-    return data || mockRatioOptions;
-  } catch (error) {
-    console.error("Error fetching ratio options:", error);
-    return mockRatioOptions; // Fallback to mock data
-  }
+    const mockRatioOptions: RatioOption[] = [
+        { id: "10", value: "10" },
+        { id: "20", value: "20" },
+        { id: "30", value: "30" },
+    ];
+    return Promise.resolve(mockRatioOptions);
 };
+
 
 export const createOptimizationRequest = async (
-  requestType: OptimizationRequestType,
-  filters: Record<string, any>
-): Promise<string> => {
-  try {
-    const { data, error } = await supabase
-      .from('optimization_requests')
-      .insert({
-        request_type: requestType,
-        filters,
-        status: 'Started'
-      })
-      .select()
-      .single();
     
-    if (error) throw error;
-    return data?.id || crypto.randomUUID();
-  } catch (error) {
-    console.error("Error creating optimization request:", error);
-    // Generate a mock UUID for development purposes
-    return crypto.randomUUID();
-  }
-};
+    payload: CreateOptimizationRequestPayload
+  ): Promise<any> => {
+    if (!payload.client_name || !payload.system_id) {
+      throw new Error("Client Name and System SID are required.");
+    }
+
+    const finalPayload: CreateOptimizationRequestPayload = {
+        ...payload,
+        validation_type: payload.validation_type || "role",
+       
+    };
+
+    if (finalPayload.ratio_threshold !== undefined && finalPayload.ratio_threshold !== null && isNaN(finalPayload.ratio_threshold)) {
+        throw new Error("Ratio threshold must be a valid number.");
+      }
+    
+      return createOptimizationRequestAPI(finalPayload);
+    };
+
 
 export const getOptimizationRequests = async (
-  requestType: OptimizationRequestType
 ): Promise<OptimizationRequest[]> => {
-  try {
-    const { data, error } = await supabase
-      .from('optimization_requests')
-      .select('*')
-      .eq('request_type', requestType)
-      .order('created_at', { ascending: false });
     
-    if (error) throw error;
-    return (data || []) as OptimizationRequest[];
-  } catch (error) {
-    console.error(`Error fetching ${requestType} optimization requests:`, error);
+    const backendRequests = await getAllOptimizationRequestsAPI(); 
+
     
-    // Return mock data for development
-    const mockRequests: OptimizationRequest[] = [
-      {
-        id: crypto.randomUUID(),
-        request_type: requestType,
-        filters: { test: "filter" },
-        status: 'Completed',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      },
-      {
-        id: crypto.randomUUID(),
-        request_type: requestType,
-        filters: { test: "filter2" },
-        status: 'In Progress',
-        created_at: new Date(Date.now() - 3600000).toISOString(), // 1 hour ago
-        updated_at: new Date(Date.now() - 3600000).toISOString()
-      }
-    ];
-    
-    return mockRequests;
-  }
+    return backendRequests.map(req => ({
+        id: String(req.req_id), 
+        client_name: req.CLIENT_NAME, 
+        system_id: req.SYSTEM_NAME, 
+        status: req.STATUS as OptimizationRequest['status'], 
+        datetime: req.TIMESTAMP ? new Date(req.TIMESTAMP).toISOString() : new Date().toISOString(),
+        request_type: 'role', 
+        filters: {}, 
+    }));
 };
 
 export const getRoleOptimizationResults = async (
-  requestId: string
-): Promise<RoleOptimizationResult[]> => {
-  try {
-    const { data, error } = await supabase
-      .from('role_optimization_results')
-      .select('*')
-      .eq('request_id', requestId);
+    requestId: string 
+): Promise<RoleOptimizationResult[]> => { 
+    const numericRequestId = parseInt(requestId, 10);
+    if (isNaN(numericRequestId)) {
+        console.error("Invalid Request ID for fetching results:", requestId);
+        return [];
+    }
     
-    if (error) throw error;
-    return (data || []) as RoleOptimizationResult[];
-  } catch (error) {
-    console.error("Error fetching role optimization results:", error);
+    const results = await getOptimizationResultsByRequestIdAPI(numericRequestId); 
+
     
-    // Return mock results for development
-    return [
-      {
-        id: crypto.randomUUID(),
-        request_id: requestId,
-        role_id: 'ADMIN_ROLE',
-        role_description: 'System Administrator',
-        auth_object: 'S_TCODE',
-        field: 'TCD',
-        value: 'SU01',
-        license_can_be_reduced: true,
-        insights: 'This role contains admin privileges that may be excessive for most users',
-        recommendations: 'Consider splitting into separate roles with fewer privileges',
-        explanations: 'Admin privileges should be limited to reduce security risks',
-        created_at: new Date().toISOString()
-      },
-      {
-        id: crypto.randomUUID(),
-        request_id: requestId,
-        role_id: 'FINANCE_ROLE',
-        role_description: 'Finance Department Access',
-        auth_object: 'F_BKPF_BUK',
-        field: 'BUKRS',
-        value: '1000',
-        license_can_be_reduced: false,
-        insights: 'This role has appropriate permissions for finance users',
-        recommendations: 'No changes needed',
-        explanations: 'Role is properly configured for finance department needs',
-        created_at: new Date().toISOString()
-      }
-    ];
-  }
+    return results.map(res => ({
+        id: String(res.id), 
+        request_id: String(res.req_id), 
+        role_id: res.role_id || null,
+        role_description: res.role_description || null, 
+        auth_object: res.auth_object || null, 
+        field: res.field || null,
+        value: res.value || null, 
+        license_can_be_reduced: res.license_can_be_reduced !== undefined ? res.license_can_be_reduced : null,
+        insights: res.insights || null,
+        recommendations: res.recommendations || null, 
+        explanations: res.explanations || null,
+        created_at: new Date().toISOString(), 
+    }));
 };
 
 export const getUserOptimizationResults = async (
   requestId: string
 ): Promise<UserOptimizationResult[]> => {
-  try {
-    const { data, error } = await supabase
-      .from('user_optimization_results')
-      .select('*')
-      .eq('request_id', requestId);
-    
-    if (error) throw error;
-    return (data || []) as UserOptimizationResult[];
-  } catch (error) {
-    console.error("Error fetching user optimization results:", error);
-    
-    // Return mock results for development
-    return [
-      {
-        id: crypto.randomUUID(),
-        request_id: requestId,
-        user_id: 'USER001',
-        display_name: 'John Doe',
-        valid_from: new Date('2023-01-01').toISOString(),
-        valid_to: new Date('2024-12-31').toISOString(),
-        user_group: 'FINANCE',
-        last_logon: new Date('2023-06-15').toISOString(),
-        license_can_be_reduced: true,
-        insights: 'User has not logged in for over 3 months',
-        recommendations: 'Consider downgrading to Self-Service license',
-        explanations: 'Infrequent usage does not justify Professional license cost',
-        created_at: new Date().toISOString()
-      },
-      {
-        id: crypto.randomUUID(),
-        request_id: requestId,
-        user_id: 'USER002',
-        display_name: 'Jane Smith',
-        valid_from: new Date('2023-01-01').toISOString(),
-        valid_to: null,
-        user_group: 'IT',
-        last_logon: new Date('2023-10-01').toISOString(),
-        license_can_be_reduced: false,
-        insights: 'User actively uses advanced features',
-        recommendations: 'Maintain current Professional license',
-        explanations: 'Usage patterns justify the current license type',
-        created_at: new Date().toISOString()
-      }
-    ];
-  }
+  console.log(`Fetching user optimization results for request ID: ${requestId}`);
+
+  return [
+    {
+      id: crypto.randomUUID(),
+      request_id: requestId,
+      user_id: 'USER001',
+      display_name: 'John Doe',
+      valid_from: new Date('2023-01-01').toISOString(),
+      valid_to: new Date('2024-12-31').toISOString(),
+      user_group: 'FINANCE',
+      last_logon: new Date('2023-06-15').toISOString(),
+      license_can_be_reduced: true,
+      insights: 'User has not logged in for over 3 months',
+      recommendations: 'Consider downgrading to Self-Service license',
+      explanations: 'Infrequent usage does not justify Professional license cost',
+      created_at: new Date().toISOString()
+    },
+    {
+      id: crypto.randomUUID(),
+      request_id: requestId,
+      user_id: 'USER002',
+      display_name: 'Jane Smith',
+      valid_from: new Date('2023-01-01').toISOString(),
+      valid_to: null,
+      user_group: 'IT',
+      last_logon: new Date('2023-10-01').toISOString(),
+      license_can_be_reduced: false,
+      insights: 'User actively uses advanced features',
+      recommendations: 'Maintain current Professional license',
+      explanations: 'Usage patterns justify the current license type',
+      created_at: new Date().toISOString()
+    }
+  ];
 };
 
-// Mock data creation for demonstration purposes
-export const createMockResults = async (requestId: string, requestType: OptimizationRequestType) => {
-  try {
-    // Update request status
-    await supabase
-      .from('optimization_requests')
-      .update({ status: 'In Progress' })
-      .eq('id', requestId);
-    
-    // Simulate some processing time
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    if (requestType === 'role') {
-      // Create mock role optimization results
-      const mockResults = [
-        {
-          request_id: requestId,
-          role_id: 'ADMIN_ROLE',
-          role_description: 'System Administrator',
-          auth_object: 'S_TCODE',
-          field: 'TCD',
-          value: 'SU01',
-          license_can_be_reduced: true,
-          insights: 'This role contains admin privileges that may be excessive for most users',
-          recommendations: 'Consider splitting into separate roles with fewer privileges',
-          explanations: 'Admin privileges should be limited to reduce security risks'
-        },
-        {
-          request_id: requestId,
-          role_id: 'FINANCE_ROLE',
-          role_description: 'Finance Department Access',
-          auth_object: 'F_BKPF_BUK',
-          field: 'BUKRS',
-          value: '1000',
-          license_can_be_reduced: false,
-          insights: 'This role has appropriate permissions for finance users',
-          recommendations: 'No changes needed',
-          explanations: 'Role is properly configured for finance department needs'
-        }
-      ];
-      
-      try {
-        await supabase.from('role_optimization_results').insert(mockResults);
-      } catch (error) {
-        console.error("Error inserting mock role results:", error);
-      }
-    } else {
-      // Create mock user optimization results
-      const mockResults = [
-        {
-          request_id: requestId,
-          user_id: 'USER001',
-          display_name: 'John Doe',
-          valid_from: new Date('2023-01-01').toISOString(),
-          valid_to: new Date('2024-12-31').toISOString(),
-          user_group: 'FINANCE',
-          last_logon: new Date('2023-06-15').toISOString(),
-          license_can_be_reduced: true,
-          insights: 'User has not logged in for over 3 months',
-          recommendations: 'Consider downgrading to Self-Service license',
-          explanations: 'Infrequent usage does not justify Professional license cost'
-        },
-        {
-          request_id: requestId,
-          user_id: 'USER002',
-          display_name: 'Jane Smith',
-          valid_from: new Date('2023-01-01').toISOString(),
-          valid_to: null,
-          user_group: 'IT',
-          last_logon: new Date('2023-10-01').toISOString(),
-          license_can_be_reduced: false,
-          insights: 'User actively uses advanced features',
-          recommendations: 'Maintain current Professional license',
-          explanations: 'Usage patterns justify the current license type'
-        }
-      ];
-      
-      try {
-        await supabase.from('user_optimization_results').insert(mockResults);
-      } catch (error) {
-        console.error("Error inserting mock user results:", error);
-      }
-    }
-    
-    // Update request status to completed
-    await supabase
-      .from('optimization_requests')
-      .update({ status: 'Completed' })
-      .eq('id', requestId);
-  } catch (error) {
-    console.error("Error creating mock results:", error);
-    // Continue with execution even if there's an error with Supabase
-  }
-};
+
+

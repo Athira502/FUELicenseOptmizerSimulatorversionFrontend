@@ -8,8 +8,9 @@ export interface OptimizationRequest {
   request_type: OptimizationRequestType;
   filters: Record<string, any>;
   status: OptimizationStatus;
-  created_at: string;
-  updated_at: string;
+  client_name:string;
+  system_id:string;
+  datetime: string;
 }
 
 export interface RoleOptimizationResult {
@@ -20,7 +21,7 @@ export interface RoleOptimizationResult {
   auth_object: string | null;
   field: string | null;
   value: string | null;
-  license_can_be_reduced: boolean | null;
+  license_can_be_reduced: 'Yes' | 'No' | 'May Be'| null;
   insights: string | null;
   recommendations: string | null;
   explanations: string | null;

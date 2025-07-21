@@ -1,5 +1,7 @@
 
-import React, { useState } from "react";
+
+
+import React, { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,63 +13,61 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Download, Trash, Search } from "lucide-react";
+import {
+  fetchClients,
+  fetchSystemsByClient,
+  fetchTablesForClientSystem,
+  downloadTableData,
+  truncateTableData,
+} from "@/api/data_post"; // Import API functions
 
-interface DataTypeInfo {
-  id: string;
-  title: string;
+interface TableInfo {
   tableName: string;
 }
 
-const dataTypes: DataTypeInfo[] = [
-  {
-    id: "role-objects",
-    title: "FUE License Roles & Objects Mapping Data",
-    tableName: "Z_FUE_CLIENTNAME_SYSNAME_ROLE_OBJ_LICENSE_INFO",
-  },
-  {
-    id: "role-auth",
-    title: "Role Authorization Object Mapping Data",
-    tableName: "Z_FUE_CLIENTNAME_SYSNAME_ROLE_AUTH_OBJ_DATA",
-  },
-  {
-    id: "role-fiori",
-    title: "Role Fiori Apps Mapping Data",
-    tableName: "Z_FUE_CLIENTNAME_SYSNAME_ROLE_FIORI_DATA",
-  },
-  {
-    id: "master-derived",
-    title: "Master & Derived Role Mapping Data",
-    tableName: "Z_FUE_CLIENTNAME_SYSNAME_ROLE_MSTR_DERVI",
-  },
-  {
-    id: "user-details",
-    title: "User Details Data",
-    tableName: "Z_FUE_CLIENTNAME_SYSNAME_USER_DATA",
-  },
-  {
-    id: "user-role",
-    title: "User Role Mapping Data",
-    tableName: "Z_FUE_CLIENTNAME_SYSNAME_USER_ROLE_DATA",
-  },
-];
-
-// Sample client and system data
-const clients = ["ACME Corp", "Globex Inc", "Initech", "Cyberdyne", "Wayne Enterprises"];
-const systems = {
-  "ACME Corp": ["PRD001", "DEV002"],
-  "Globex Inc": ["TST001", "DEV005"],
-  "Initech": ["QAS001", "PRD002"],
-  "Cyberdyne": ["DEV003", "QAS002"],
-  "Wayne Enterprises": ["SND001", "PRD003"],
-};
-
 const ManageData = () => {
   const { toast } = useToast();
+  const [clientsList, setClientsList] = useState<string[]>([]);
+  const [systemsList, setSystemsList] = useState<string[]>([]);
   const [selectedClient, setSelectedClient] = useState<string>("");
   const [selectedSystem, setSelectedSystem] = useState<string>("");
-  const [searchResults, setSearchResults] = useState<DataTypeInfo[] | null>(null);
+  const [availableTables, setAvailableTables] = useState<string[] | null>(null); // Change to null
 
-  const handleSearch = () => {
+  useEffect(() => {
+    const loadClients = async () => {
+      try {
+        const clients = await fetchClients();
+        setClientsList(clients);
+      } catch (error: any) {
+        toast({ title: "Error", description: error.message, variant: "destructive" });
+      }
+    };
+
+    loadClients();
+  }, [toast]);
+
+  useEffect(() => {
+    const loadSystems = async () => {
+      if (selectedClient) {
+        try {
+          const systems = await fetchSystemsByClient(selectedClient);
+          setSystemsList(systems);
+          setSelectedSystem(""); // Reset system when client changes
+          setAvailableTables(null); // Clear tables when client changes
+        } catch (error: any) {
+          toast({ title: "Error", description: error.message, variant: "destructive" });
+        }
+      } else {
+        setSystemsList([]);
+        setSelectedSystem("");
+        setAvailableTables(null);
+      }
+    };
+
+    loadSystems();
+  }, [selectedClient, toast]);
+
+  const handleSearch = async () => {
     if (!selectedClient || !selectedSystem) {
       toast({
         title: "Selection Required",
@@ -77,17 +77,30 @@ const ManageData = () => {
       return;
     }
 
-    // In a real app, this would be an API call to fetch data
-    // For now, we'll simulate showing results after search
-    setSearchResults(dataTypes);
-    
-    toast({
-      title: "Search Complete",
-      description: `Found ${dataTypes.length} data sources for ${selectedClient} - ${selectedSystem}`,
-    });
+    try {
+      const tables = await fetchTablesForClientSystem(selectedClient, selectedSystem);
+      if(tables && tables.length > 0){
+        setAvailableTables(tables);
+        toast({
+          title: "Search Complete",
+          description: `Found ${tables.length} data sources for ${selectedClient} - ${selectedSystem}`,
+        });
+      }
+      else{
+        setAvailableTables([]);
+        toast({
+          title: "Search Complete",
+          description: `No data sources found for ${selectedClient} - ${selectedSystem}`,
+        });
+      }
+      
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+      setAvailableTables(null);
+    }
   };
 
-  const handleDownload = (dataType: DataTypeInfo) => {
+  const handleDownload = async (tableName: string) => {
     if (!selectedClient || !selectedSystem) {
       toast({
         title: "Selection Required",
@@ -97,14 +110,22 @@ const ManageData = () => {
       return;
     }
 
-    // In a real app, this would be an API call
-    toast({
-      title: "Download Started",
-      description: `Downloading ${dataType.title} for ${selectedClient} - ${selectedSystem}`,
-    });
+    try {
+      toast({
+        title: "Download Started",
+        description: `Downloading ${tableName} for ${selectedClient} - ${selectedSystem}`,
+      });
+      await downloadTableData(selectedClient, selectedSystem, tableName);
+      toast({
+        title: "Download Complete",
+        description: `Download of ${tableName} for ${selectedClient} - ${selectedSystem} finished.`,
+      });
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
   };
 
-  const handleDelete = (dataType: DataTypeInfo) => {
+  const handleDelete = async (tableName: string) => {
     if (!selectedClient || !selectedSystem) {
       toast({
         title: "Selection Required",
@@ -114,11 +135,20 @@ const ManageData = () => {
       return;
     }
 
-    // In a real app, this would be an API call with confirmation
-    toast({
-      title: "Delete Successful",
-      description: `${dataType.title} data for ${selectedClient} - ${selectedSystem} has been deleted`,
-    });
+    const confirmed = window.confirm(`Are you sure you want to delete all data from ${tableName} for ${selectedClient} - ${selectedSystem}? This action cannot be undone.`);
+    if (confirmed) {
+      try {
+        const response = await truncateTableData(selectedClient, selectedSystem, tableName);
+        toast({
+          title: "Delete Successful",
+          description: response.message || `Data in ${tableName} for ${selectedClient} - ${selectedSystem} has been deleted.`,
+        });
+        // Optionally, refresh the table list after deletion
+        handleSearch();
+      } catch (error: any) {
+        toast({ title: "Error", description: error.message, variant: "destructive" });
+      }
+    }
   };
 
   return (
@@ -137,15 +167,13 @@ const ManageData = () => {
               value={selectedClient}
               onValueChange={(value) => {
                 setSelectedClient(value);
-                setSelectedSystem("");
-                setSearchResults(null); // Clear results when selection changes
               }}
             >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select Client" />
               </SelectTrigger>
               <SelectContent>
-                {clients.map((client) => (
+                {clientsList.map((client) => (
                   <SelectItem key={client} value={client}>
                     {client}
                   </SelectItem>
@@ -162,7 +190,6 @@ const ManageData = () => {
               value={selectedSystem}
               onValueChange={(value) => {
                 setSelectedSystem(value);
-                setSearchResults(null); // Clear results when selection changes
               }}
               disabled={!selectedClient}
             >
@@ -170,77 +197,83 @@ const ManageData = () => {
                 <SelectValue placeholder={selectedClient ? "Select System ID" : "Select Client first"} />
               </SelectTrigger>
               <SelectContent>
-                {selectedClient &&
-                  systems[selectedClient as keyof typeof systems]?.map((system) => (
-                    <SelectItem key={system} value={system}>
-                      {system}
-                    </SelectItem>
-                  ))}
+                {systemsList.map((system) => (
+                  <SelectItem key={system} value={system}>
+                    {system}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
 
           <div className="w-full md:w-1/3">
-            <Button 
-              onClick={handleSearch} 
+            <Button
+              onClick={handleSearch}
               className="w-full bg-belize-300 hover:bg-belize-400 text-white"
+              disabled={!selectedClient || !selectedSystem}
             >
               <Search className="h-4 w-4 mr-2" /> Search
             </Button>
           </div>
         </div>
 
-        {searchResults && (
-          <div className="table-container">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Data Type</th>
-                  <th>Client Name</th>
-                  <th>System ID</th>
-                  <th className="text-center">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {searchResults.map((dataType) => (
-                  <tr key={dataType.id}>
-                    <td className="font-medium">{dataType.title}</td>
-                    <td>{selectedClient}</td>
-                    <td>{selectedSystem}</td>
-                    <td>
-                      <div className="flex justify-center space-x-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDownload(dataType)}
-                          className="text-belize-600 hover:text-belize-700 hover:bg-belize-50"
-                        >
-                          <Download className="h-4 w-4 mr-1" /> Download
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDelete(dataType)}
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                        >
-                          <Trash className="h-4 w-4 mr-1" /> Delete
-                        </Button>
-                      </div>
-                    </td>
+        {availableTables !== null && ( //tables loaded
+          availableTables && availableTables.length > 0 ? (
+            <div className="table-container">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Table Name</th>
+                    <th>Client Name</th>
+                    <th>System ID</th>
+                    <th className="text-center">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {availableTables.map((tableName) => (
+                    <tr key={tableName}>
+                      <td className="font-medium">{tableName}</td>
+                      <td>{selectedClient}</td>
+                      <td>{selectedSystem}</td>
+                      <td>
+                        <div className="flex justify-center space-x-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDownload(tableName)}
+                            className="text-belize-600 hover:text-belize-700 hover:bg-belize-50"
+                          >
+                            <Download className="h-4 w-4 mr-1" /> Download
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDelete(tableName)}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <Trash className="h-4 w-4 mr-1" /> Delete
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              No tables found for the selected Client: {selectedClient} and System: {selectedSystem}.
+            </div>
+          )
         )}
 
-        {!searchResults && selectedClient && selectedSystem && (
+        {availableTables === null && selectedClient && selectedSystem && (
           <div className="text-center py-8 text-gray-500">
             Click Search to view available data
           </div>
         )}
 
-        {!searchResults && (!selectedClient || !selectedSystem) && (
+        {!selectedClient || !selectedSystem && (
           <div className="text-center py-8 text-gray-500">
             Please select a Client and System ID to search for data
           </div>

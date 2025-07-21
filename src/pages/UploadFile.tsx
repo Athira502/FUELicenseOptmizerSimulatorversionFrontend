@@ -1,16 +1,23 @@
 
 import React, { useState } from "react";
-import { useToast } from "@/hooks/use-toast";
+import { toast, useToast } from "@/hooks/use-toast";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Upload } from "lucide-react";
+import { uploadLicenseData, uploadAuthData, uploadRoleFioriMapData, uploadMasterDerivedData, uploadUserData, uploadUserRoleMapData, uploadUserRoleMappingData, uploadRoleLicenseSummaryData, uploadObjectFieldLicenseData } from "../api/data_post"; // Import API functions
 
 interface FileUploadRowProps {
   title: string;
   allowedExtensions: string[];
-  onFileUpload: (clientName: string, systemId: string, systemRelease: string, file: File | null) => void;
+  onFileUpload: (
+    title: string, 
+    clientName: string,
+    systemId: string,
+    systemRelease: string,
+    file: File | null
+  ) => void;
 }
 
 const FileUploadRow: React.FC<FileUploadRowProps> = ({
@@ -24,19 +31,19 @@ const FileUploadRow: React.FC<FileUploadRowProps> = ({
   const [systemRelease, setSystemRelease] = useState<string>("");
   const [file, setFile] = useState<File | null>(null);
   const [fileName, setFileName] = useState<string>("");
+  const [isUploading, setIsUploading] = useState<boolean>(false); 
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0] || null;
-    
+
     if (!selectedFile) {
       setFile(null);
       setFileName("");
       return;
     }
-    
-    // Check file extension
+
     const extension = selectedFile.name.split(".").pop()?.toLowerCase() || "";
-    
+
     if (!allowedExtensions.includes(`.${extension}`)) {
       toast({
         title: "Invalid File",
@@ -48,13 +55,12 @@ const FileUploadRow: React.FC<FileUploadRowProps> = ({
       setFileName("");
       return;
     }
-    
+
     setFile(selectedFile);
     setFileName(selectedFile.name);
   };
 
-  const handleUpload = () => {
-    // Validate inputs
+  const handleUpload = async () => {
     if (!clientName.trim()) {
       toast({
         title: "Missing Information",
@@ -91,13 +97,72 @@ const FileUploadRow: React.FC<FileUploadRowProps> = ({
       return;
     }
 
-    onFileUpload(clientName, systemId, systemRelease, file);
+    setIsUploading(true);
+    toast({
+      title: "Upload Started",
+      description: `Uploading ${file.name} for ${clientName} - ${systemId}...`,
+    });
+
+    try {
+      let responseData;
+      if (title.includes("FUE License")) {
+        responseData = await uploadLicenseData(clientName, systemId,systemRelease, file); 
+      } else if (title.includes("Authorization")) {
+        responseData = await uploadAuthData(clientName, systemId,systemRelease, file); 
+      } else if (title.includes("Role Fiori")) {
+        responseData = await uploadRoleFioriMapData(clientName, systemId, systemRelease, file);
+      } else if (title === "Master & Derived Role Mapping Data") { 
+        responseData = await uploadMasterDerivedData(clientName, systemId, systemRelease, file);
+      } else if (title.includes("User Details")) {
+          responseData = await uploadUserData(clientName, systemId, systemRelease, file);
+      } else if (title.includes("User Role Mapping")) {
+    responseData = await uploadUserRoleMappingData(clientName, systemId, systemRelease, file);
+
+  } else if (title.includes("User Role Map")) {
+    responseData = await uploadUserRoleMapData(clientName, systemId, systemRelease, file);
+
+  } else if (title.includes("Role License Summary")) {
+    responseData = await uploadRoleLicenseSummaryData(clientName, systemId, systemRelease, file);
+
+  } else if (title.includes("Object Field License")) {
+    responseData = await uploadObjectFieldLicenseData(clientName, systemId, systemRelease, file);
+
+  }
+ else {
+        toast({
+          title: "Unsupported Upload Type",
+          description: `No API endpoint configured for ${title}`,
+          variant: "destructive",
+        });
+        return;
+      }
+   
+
+      toast({
+        title: "Upload Complete",
+        description: responseData?.message || "File uploaded successfully!",
+      });
+      // Optionally reset the form
+      setFile(null);
+      setFileName("");
+      setClientName("");
+      setSystemId("");
+      setSystemRelease("");
+    } catch (error: any) {
+      toast({
+        title: "Upload Failed",
+        description: error?.message || "An error occurred during upload.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-6 gap-4 p-4 border-b border-gray-200 items-center">
       <div className="text-sm font-medium">{title}</div>
-      
+
       <div>
         <Input
           type="text"
@@ -108,7 +173,7 @@ const FileUploadRow: React.FC<FileUploadRowProps> = ({
           className="border-belize-300"
         />
       </div>
-      
+
       <div>
         <Input
           type="text"
@@ -120,7 +185,7 @@ const FileUploadRow: React.FC<FileUploadRowProps> = ({
           className="border-belize-300"
         />
       </div>
-      
+
       <div>
         <Input
           type="text"
@@ -131,7 +196,7 @@ const FileUploadRow: React.FC<FileUploadRowProps> = ({
           className="border-belize-300"
         />
       </div>
-      
+
       <div className="relative">
         <input
           type="file"
@@ -148,37 +213,81 @@ const FileUploadRow: React.FC<FileUploadRowProps> = ({
           {fileName ? fileName : "Choose File"}
         </Label>
       </div>
-      
+
       <div>
-        <Button 
-          onClick={handleUpload} 
-          className="bg-belize-300 hover:bg-belize-400 text-white w-full"
+        <Button
+          onClick={handleUpload}
+          className={`bg-belize-300 hover:bg-belize-400 text-white w-full ${isUploading ? "opacity-50 cursor-not-allowed" : ""}`}
+          disabled={isUploading}
         >
-          Upload File
+          {isUploading ? "Uploading..." : "Upload File"}
         </Button>
       </div>
     </div>
   );
 };
+const handleFileUpload = async (
+  title: string,
+  clientName: string,
+  systemId: string,
+  systemRelease: string, 
+  file: File | null
+) => {
+  if (!file) return;
 
-const UploadFile = () => {
-  const { toast } = useToast();
-
-  const handleFileUpload = (clientName: string, systemId: string, systemRelease: string, file: File | null) => {
+  try {
     toast({
       title: "Upload Started",
-      description: `Uploading ${file?.name} for ${clientName} - ${systemId}...`,
+      description: `Uploading ${file.name} for ${clientName} - ${systemId}...`,
     });
 
-    // Simulate API call
-    setTimeout(() => {
-      toast({
-        title: "Upload Complete",
-        description: "Your file has been uploaded successfully!",
-      });
-    }, 2000);
-  };
+    let responseData;
+    if (title.includes("FUE License")) {
+      responseData = await uploadLicenseData(clientName, systemId,systemRelease, file); 
+    } else if (title.includes("Authorization")) {
+      responseData = await uploadAuthData(clientName, systemId,systemRelease, file); 
+    } else if (title.includes("Role Fiori")) {
+      responseData = await uploadRoleFioriMapData(clientName, systemId, systemRelease, file);
+    } else if (title === "Master & Derived Role Mapping Data") { //changed this line
+      responseData = await uploadMasterDerivedData(clientName, systemId, systemRelease, file);
+    } else if (title.includes("User Details")) {
+        responseData = await uploadUserData(clientName, systemId, systemRelease, file);
+    } else if (title.includes("User Role Mapping")) {
+    responseData = await uploadUserRoleMappingData(clientName, systemId, systemRelease, file);
 
+  } else if (title.includes("User Role Map")) {
+    responseData = await uploadUserRoleMapData(clientName, systemId, systemRelease, file);
+
+  } else if (title.includes("Role License Summary")) {
+    responseData = await uploadRoleLicenseSummaryData(clientName, systemId, systemRelease, file);
+
+  } else if (title.includes("Object Field License")) {
+    responseData = await uploadObjectFieldLicenseData(clientName, systemId, systemRelease, file);
+
+  } else {
+      toast({
+        title: "Unsupported Upload Type",
+        description: `No API endpoint configured for ${title}`,
+        variant: "destructive",
+      });
+      return;
+    }
+    
+
+    toast({
+      title: "Upload Complete",
+      description: responseData?.message || "File uploaded successfully!",
+    });
+  } catch (error: any) {
+    toast({
+      title: "Upload Failed",
+      description: error?.message || "An error occurred during upload.",
+      variant: "destructive",
+    });
+  }
+};
+
+const UploadFile = () => {
   return (
     <Layout title="Upload File">
       <div className="space-y-6 bg-white shadow-md rounded-lg p-6">
@@ -200,44 +309,65 @@ const UploadFile = () => {
           </div>
 
           <FileUploadRow
-            title="FUE License Roles & Objects Mapping Data"
-            allowedExtensions={[".xml"]}
-            onFileUpload={handleFileUpload}
-          />
+        title="FUE License Roles & Objects Mapping Data"
+        allowedExtensions={[".xml"]}
+        onFileUpload={handleFileUpload} 
+      />
 
-          <FileUploadRow
-            title="Role Authorization Object Mapping Data"
-            allowedExtensions={[".csv", ".xlsx"]}
-            onFileUpload={handleFileUpload}
-          />
+<FileUploadRow
+        title="Role Authorization Object Mapping Data"
+        allowedExtensions={[".csv"]}
+        onFileUpload={handleFileUpload} 
+      />
 
           <FileUploadRow
             title="Role Fiori Apps Mapping data"
-            allowedExtensions={[".csv", ".xlsx"]}
+            allowedExtensions={[".csv"]}
             onFileUpload={handleFileUpload}
+            
           />
 
           <FileUploadRow
             title="Master & Derived Role Mapping Data"
-            allowedExtensions={[".csv", ".xlsx"]}
+            allowedExtensions={[".csv"]}
             onFileUpload={handleFileUpload}
           />
 
           <FileUploadRow
             title="User Details Data"
-            allowedExtensions={[".csv", ".xlsx"]}
+            allowedExtensions={[".csv"]}
+            onFileUpload={handleFileUpload}
+          />
+{/* 
+          <FileUploadRow
+            title="User Role Data"
+            allowedExtensions={[".csv"]}
+            onFileUpload={handleFileUpload}
+          /> */}
+
+          <FileUploadRow
+            title="User Role Mapping Data"
+            allowedExtensions={[".csv"]}
             onFileUpload={handleFileUpload}
           />
 
           <FileUploadRow
-            title="User Role Mapping Data"
-            allowedExtensions={[".csv", ".xlsx"]}
+            title="Role License Summary Data"
+            allowedExtensions={[".csv"]}
+            onFileUpload={handleFileUpload}
+          />
+
+          <FileUploadRow
+            title="Object Field License Data"
+            allowedExtensions={[".csv"]}
             onFileUpload={handleFileUpload}
           />
         </div>
       </div>
     </Layout>
   );
+
+ 
 };
 
 export default UploadFile;

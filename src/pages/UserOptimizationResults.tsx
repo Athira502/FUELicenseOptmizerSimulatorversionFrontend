@@ -31,13 +31,11 @@ const UserOptimizationResults = () => {
     enabled: !!requestId,
   });
   
-  // Format date for display
   const formatDate = (dateString: string | null) => {
     if (!dateString) return "-";
     return format(new Date(dateString), "yyyy-MM-dd");
   };
   
-  // Filter results based on search term and reducible checkbox
   const filteredResults = results.filter((result) => {
     const matchesSearch =
       !searchTerm ||

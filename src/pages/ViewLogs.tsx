@@ -1,204 +1,239 @@
 
-import React, { useState } from "react";
-import Layout from "@/components/Layout";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
+
+import React, { useState, useEffect } from "react";
+import Layout from "@/components/Layout"; 
+import { Button } from "@/components/ui/button"; 
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
 } from "@/components/ui/dialog";
-import { Eye, Download, X } from "lucide-react";
+import { Loader, Eye, Download } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { fetchLogFilenames, fetchLogContent, downloadLogFile } from "@/api/data_post";
 
-const ViewLogs = () => {
-  const [selectedLog, setSelectedLog] = useState<any>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+interface LogRecord {
+    id: string;
+    timestamp_display: string;
+    client_name: string;
+    system_name: string;
+}
 
-  // Mock log data based on the screenshots
-  const logs = [
-    {
-      id: 1,
-      timestamp: "Jun 23, 2025, 10:23 AM",
-      clientName: "FUJI",
-      systemId: "S4HANA",
-      fileName: "FUJI-S4HANA-20250623-102301.log",
-      content: `2025-06-23 10:23:01,641 - app.core.logger - INFO -
-license_optimizer_router:43 - Received request to optimize license for
-client: FUJI, system_id: S4HANA, roles: ['ZD_FTM_M_BP_APPROVE_SUP_2100']
-2025-06-23 10:23:01,641 - app.core.logger - INFO -
-license_optimizer_service:41 - Starting license optimization for client:
-FUJI, roles: ['ZD_FTM_M_BP_APPROVE_SUP_2100']
-2025-06-23 10:23:01,719 - app.core.logger - INFO -
-license_optimizer_service:171 - prompt:
-I'm optimizing SAP FUE license consumption for an SAP role.
-client: FUJI
-SAP System ID:S4HANA
-SAP System Info: S4 HANA OnPremise 1909 Initial Support Pack
+const LogsPage = () => {
+    const [logRecords, setLogRecords] = useState<LogRecord[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
-Here's the role data in JSON:`
-    },
-    {
-      id: 2,
-      timestamp: "Jun 23, 2025, 10:06 AM",
-      clientName: "FUJI",
-      systemId: "S4HANA",
-      fileName: "FUJI-S4HANA-20250623-100601.log",
-      content: `2025-06-23 10:06:01,123 - app.core.logger - INFO -
-license_optimizer_router:43 - Received request to optimize license for
-client: FUJI, system_id: S4HANA, roles: ['SAP_MM_IM_GOODS_MOVEMENTS']
-2025-06-23 10:06:01,124 - app.core.logger - INFO -
-license_optimizer_service:41 - Starting license optimization for client:
-FUJI, roles: ['SAP_MM_IM_GOODS_MOVEMENTS']`
-    },
-    {
-      id: 3,
-      timestamp: "Jun 23, 2025, 09:59 AM",
-      clientName: "FUJI",
-      systemId: "S4HANA",
-      fileName: "FUJI-S4HANA-20250623-095901.log",
-      content: `2025-06-23 09:59:01,456 - app.core.logger - INFO -
-license_optimizer_router:43 - Received request to optimize license for
-client: FUJI, system_id: S4HANA, roles: ['TEAMS_MAINTAIN_AD']`
-    },
-    {
-      id: 4,
-      timestamp: "Jun 23, 2025, 09:56 AM",
-      clientName: "FUJI",
-      systemId: "S4HANA",
-      fileName: "FUJI-S4HANA-20250623-095601.log",
-      content: `2025-06-23 09:56:01,789 - app.core.logger - INFO -
-license_optimizer_router:43 - Received request to optimize license for
-client: FUJI, system_id: S4HANA, roles: ['SAP_BASIS_ADMIN']`
-    },
-    {
-      id: 5,
-      timestamp: "Jun 18, 2025, 06:45 PM",
-      clientName: "FUJI",
-      systemId: "S4HANA",
-      fileName: "FUJI-S4HANA-20250618-184501.log",
-      content: `2025-06-18 18:45:01,234 - app.core.logger - INFO -
-license_optimizer_router:43 - Received request to optimize license for
-client: FUJI, system_id: S4HANA, roles: ['SAP_SECURITY_ADMIN']`
-    },
-    {
-      id: 6,
-      timestamp: "Jun 18, 2025, 06:43 PM",
-      clientName: "FUJI",
-      systemId: "S4HANA",
-      fileName: "FUJI-S4HANA-20250618-184301.log",
-      content: `2025-06-18 18:43:01,567 - app.core.logger - INFO -
-license_optimizer_router:43 - Received request to optimize license for
-client: FUJI, system_id: S4HANA, roles: ['SAP_BI_ANALYST']`
-    }
-  ];
+    const [currentLogContent, setCurrentLogContent] = useState<string | null>(null);
+    const [fetchingContent, setFetchingContent] = useState(false);
+    const [contentError, setContentError] = useState<string | null>(null);
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [dialogLogFilename, setDialogLogFilename] = useState<string>('');
+    
+    const [downloading, setDownloading] = useState(false);
 
-  const handleViewLog = (log: any) => {
-    setSelectedLog(log);
-    setIsDialogOpen(true);
-  };
+    const parseLogFilename = (filename: string): LogRecord | null => {
+        const match = filename.match(/^([a-zA-Z0-9_]+)-([a-zA-Z0-9_]+)-(\d{8})-(\d{6})\.log$/);
+        if (match) {
+            const [, clientName, systemId, datePart, timePart] = match;
+           
+            const year = datePart.substring(0, 4);
+            const month = datePart.substring(4, 6);
+            const day = datePart.substring(6, 8);
+            const hour = timePart.substring(0, 2);
+            const minute = timePart.substring(2, 4);
+            const second = timePart.substring(4, 6);
+            const isoTimestamp = `${year}-${month}-${day}T${hour}:${minute}:${second}`;
 
-  const handleDownload = (log: any) => {
-    const element = document.createElement("a");
-    const file = new Blob([log.content], { type: 'text/plain' });
-    element.href = URL.createObjectURL(file);
-    element.download = log.fileName;
-    document.body.appendChild(element);
-    element.click();
-    document.body.removeChild(element);
-  };
+            const date = new Date(isoTimestamp);
 
-  return (
-    <Layout title="View Logs">
-      <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>System Logs</CardTitle>
-            <p className="text-gray-600">
-              View logs for specific client and system activities.
-            </p>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>TIMESTAMP</TableHead>
-                    <TableHead>CLIENT NAME</TableHead>
-                    <TableHead>SYSTEM ID</TableHead>
-                    <TableHead>ACTIONS</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {logs.map((log) => (
-                    <TableRow key={log.id}>
-                      <TableCell>{log.timestamp}</TableCell>
-                      <TableCell>{log.clientName}</TableCell>
-                      <TableCell>{log.systemId}</TableCell>
-                      <TableCell>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleViewLog(log)}
-                          className="flex items-center gap-1"
-                        >
-                          <Eye className="h-4 w-4" />
-                          View Log
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
+            const timestamp_display = new Intl.DateTimeFormat('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true
+            }).format(date);
 
-        {/* Log Details Dialog */}
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-            <DialogHeader>
-              <div className="flex items-center justify-between">
-                <DialogTitle>Log Details: {selectedLog?.fileName}</DialogTitle>
-                <div className="flex items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => selectedLog && handleDownload(selectedLog)}
-                    className="flex items-center gap-1"
-                  >
-                    <Download className="h-4 w-4" />
-                    Download
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => setIsDialogOpen(false)}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
+            return {
+                id: filename,
+                client_name: clientName,
+                system_name: systemId,
+                timestamp_display: timestamp_display,
+            };
+        }
+        return null;
+    };
+
+    useEffect(() => {
+        const loadLogs = async () => {
+            setLoading(true);
+            setError(null);
+            try {
+                const filenames = await fetchLogFilenames();
+               
+                const parsedRecords = filenames
+                    .map(parseLogFilename)
+                    .filter((record): record is LogRecord => record !== null);
+               
+                setLogRecords(parsedRecords);
+            } catch (err: any) {
+                console.error("Failed to load log list:", err);
+                setError(err.message || "Failed to load log list. Please check the backend.");
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        loadLogs();
+    }, []);
+
+    const handleViewLog = async (filename: string) => {
+        setFetchingContent(true);
+        setCurrentLogContent(null);
+        setContentError(null);
+        setDialogLogFilename(filename);
+
+        try {
+            const content = await fetchLogContent(filename);
+            setCurrentLogContent(content);
+        } catch (err: any) {
+            console.error(`Failed to fetch content for ${filename}:`, err);
+            setContentError(err.message || "Failed to fetch log content.");
+        } finally {
+            setFetchingContent(false);
+        }
+    };
+
+    const handleDownloadLog = async (filename: string) => {
+        setDownloading(true);
+        
+        try {
+            // Use the API function instead of direct fetch
+            const result = await downloadLogFile(filename);
+            
+            // Optional: Show success message
+            // alert(`Successfully downloaded: ${result.filename}`);
+            
+        } catch (err: any) {
+            console.error(`Failed to download ${filename}:`, err);
+            alert(`Failed to download ${filename}: ${err.message}`);
+        } finally {
+            setDownloading(false);
+        }
+    };
+
+    return (
+        <Layout title="View Logs">
+            <div className="space-y-6 bg-white shadow-md rounded-lg p-6">
+                <p className="text-gray-600 mb-4">
+                    View logs for specific client and system activities.
+                </p>
+
+                <div className="table-container">
+                    {loading ? (
+                        <div className="flex justify-center items-center p-8">
+                            <Loader className="h-6 w-6 animate-spin text-belize-500" />
+                            <span className="ml-2 text-belize-500">Loading logs...</span>
+                        </div>
+                    ) : error ? (
+                        <div className="text-red-500 p-4 border border-red-500/30 rounded-md bg-red-50/50">
+                            {error}
+                        </div>
+                    ) : (
+                        <table className="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Timestamp</th>
+                                    <th>Client Name</th>
+                                    <th>System ID</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {logRecords.length > 0 ? (
+                                    logRecords.map((record) => (
+                                        <tr key={record.id}>
+                                            <td>{record.timestamp_display}</td>
+                                            <td>{record.client_name}</td>
+                                            <td>{record.system_name}</td>
+                                            <td>
+                                                <Dialog open={isDialogOpen && dialogLogFilename === record.id} onOpenChange={setIsDialogOpen}>
+                                                    <DialogTrigger asChild>
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="text-belize-600 hover:text-belize-700 hover:bg-belize-50"
+                                                            onClick={() => handleViewLog(record.id)}
+                                                        >
+                                                            <Eye className="h-4 w-4 mr-1" /> View Log
+                                                        </Button>
+                                                    </DialogTrigger>
+                                                    {isDialogOpen && dialogLogFilename === record.id && (
+                                                        <DialogContent className="max-w-2xl">
+                                                            <DialogHeader>
+                                                                <div className="flex justify-between items-center">
+                                                    <DialogTitle>Log Details: {dialogLogFilename}</DialogTitle>
+                                                            <div className="flex items-center space-x-2 mr-8">
+                                                                <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                onClick={() => handleDownloadLog(dialogLogFilename)}
+                                                                disabled={downloading}
+                                                                className="text-belize-600 hover:text-belize-700 hover:bg-white-50"
+                                                                >
+                                                                {downloading ? (
+                                                                    <Loader className="h-4 w-4 mr-1 animate-spin" />
+                                                                ) : (
+                                                                    <Download className="h-4 w-4 mr-1" />
+                                                                )}
+                                                                Download
+                                                                </Button>
+                                                                
+                                                            </div>
+                                                            </div>
+                                                                
+                                                            </DialogHeader>
+                                                            <div className="bg-gray-100 p-4 rounded-md overflow-auto max-h-80">
+                                                                {fetchingContent ? (
+                                                                    <div className="flex justify-center items-center p-4">
+                                                                        <Loader className="h-5 w-5 animate-spin text-belize-500" />
+                                                                        <span className="ml-2 text-belize-500">Loading log content...</span>
+                                                                    </div>
+                                                                ) : contentError ? (
+                                                                    <pre className="text-sm text-red-600 whitespace-pre-wrap">
+                                                                        Error: {contentError}
+                                                                    </pre>
+                                                                ) : (
+                                                                    <pre className="text-sm text-gray-800 whitespace-pre-wrap">
+                                                                        {currentLogContent || "No content available."}
+                                                                    </pre>
+                                                                )}
+                                                            </div>
+                                                        </DialogContent>
+                                                    )}
+                                                </Dialog>
+                                            </td>
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr>
+                                        <td colSpan={4} className="text-center py-8 text-gray-500">
+                                            No client/system logs found matching the expected pattern.
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    )}
                 </div>
-              </div>
-            </DialogHeader>
-            <div className="mt-4">
-              <pre className="bg-gray-100 p-4 rounded-lg text-sm overflow-x-auto whitespace-pre-wrap font-mono">
-                {selectedLog?.content}
-              </pre>
             </div>
-          </DialogContent>
-        </Dialog>
-      </div>
-    </Layout>
-  );
+        </Layout>
+    );
 };
 
-export default ViewLogs;
+export default LogsPage;
