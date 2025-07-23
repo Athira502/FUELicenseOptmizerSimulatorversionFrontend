@@ -8,8 +8,8 @@ import { Search, X } from "lucide-react";
 interface FilterObjectsProps {
   searchTerm: string;
   setSearchTerm: (term: string) => void;
-  onSearch?: (term: string) => void; // Optional callback for immediate search
-  isSearching?: boolean; // Optional loading state
+  onSearch?: (term: string) => void; 
+  isSearching?: boolean; 
 }
 
 const FilterObjects: React.FC<FilterObjectsProps> = ({
@@ -20,7 +20,6 @@ const FilterObjects: React.FC<FilterObjectsProps> = ({
 }) => {
   const [localSearchTerm, setLocalSearchTerm] = useState(searchTerm);
 
-  // Debounce search to avoid excessive API calls
   useEffect(() => {
     const debounceTimer = setTimeout(() => {
       setSearchTerm(localSearchTerm);

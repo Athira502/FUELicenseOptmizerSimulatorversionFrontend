@@ -8,7 +8,7 @@ export interface LicenseType {
 }
 
 export interface OptimizationRequest {
-  req_id: number;
+  req_id: string;
   CLIENT_NAME: string;
   SYSTEM_NAME: string;
   STATUS: string;
@@ -17,7 +17,7 @@ export interface OptimizationRequest {
 
 export interface BackendRoleOptimizationResult {
   RESULT_ID: number;
-  REQ_ID: number;
+  REQ_ID: string;
   ROLE_ID: string;
   ROLE_DESCRIPTION: string;
   AUTHORIZATION_OBJECT: string;
@@ -31,7 +31,7 @@ export interface BackendRoleOptimizationResult {
 
 export interface FrontendRoleOptimizationResult {
   id: number;
-  req_id: number; 
+  req_id: string; 
   role_id: string; 
   role_description: string; 
   auth_object: string; 
@@ -46,7 +46,7 @@ export interface FrontendRoleOptimizationResult {
 
 export interface CreateOptimizationRequestPayload {
   client_name: string;
-  validation_type?: string; 
+  // validation_type?: string; 
   target_license?: string;  
   sap_system_info?: string; // Default is 'S4 HANA OnPremise 1909 Initial Support Pack'
   role_names?: string[] | null;

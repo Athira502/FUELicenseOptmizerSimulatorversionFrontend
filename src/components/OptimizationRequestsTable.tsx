@@ -65,7 +65,7 @@ const OptimizationRequestsTable: React.FC<OptimizationRequestsTableProps> = ({
           ) : (
             requests.map((request) => (
               <TableRow key={request.id}>
-                <TableCell className="font-medium">{request.id.slice(0, 8)}</TableCell>
+                <TableCell className="font-medium">{request.id}</TableCell>
                 <TableCell>
                   {format(new Date(request.datetime), "yyyy-MM-dd HH:mm:ss")}
                 </TableCell>

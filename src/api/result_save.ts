@@ -87,7 +87,7 @@ export const getSimulationLicenseClassificationPivotTable = async (
 
 // Types for simulation results
 export interface SimulationResult {
-  simulation_run_id: number;
+  simulation_run_id: string;
   timestamp: string;
   fue_required: string;
   changes: SimulationChange[];
@@ -111,7 +111,7 @@ export interface SimulationChange {
 }
 
 export interface SimulationRunResponse {
-  simulation_run_id:number;
+  simulation_run_id:string;
   message: string;
   simulation_results: {
     pivot_table: {

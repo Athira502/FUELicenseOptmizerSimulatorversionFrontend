@@ -1,10 +1,15 @@
-
-
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react"; // Import useEffect
 import Layout from "@/components/Layout";
 import { useToast } from "@/components/ui/use-toast";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+  Select, 
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import OptimizationRequestsTable from "@/components/OptimizationRequestsTable";
 import { Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,11 +23,16 @@ import {
 import {
   getLicenseTypes,
   getOptimizationRequests,
-  createOptimizationRequest, 
+  createOptimizationRequest,
 } from "@/services/optimizationService";
 
+import {
+  fetchClients, // Import fetchClients
+  fetchSystemsByClient, // Import fetchSystemsByClient
+} from "@/api/data_post"; // Import API functions
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { CreateOptimizationRequestPayload } from "@/api/lic_opt"; 
+import { CreateOptimizationRequestPayload } from "@/api/lic_opt";
 
 
 interface Option {
@@ -35,25 +45,62 @@ const RoleOptimization = () => {
   const queryClient = useQueryClient();
 
   const [roleIds, setRoleIds] = useState<string>("");
-  const [clientId, setClientId] = useState<string>("");
+  const [clientsList, setClientsList] = useState<string[]>([]); // New state for clients
+  const [systemsList, setSystemsList] = useState<string[]>([]); // New state for systems
+  const [selectedClient, setSelectedClient] = useState<string>(""); // Renamed from clientId
+  const [selectedSystem, setSelectedSystem] = useState<string>(""); // Renamed from systemId
   const [SAPsysteminfo, setSAPsysteminfo] = useState<string>("");
-  const [systemId, setSystemId] = useState<string>("");
   const [selectedLicense, setSelectedLicense] = useState<string>("");
   const [ratioInput, setRatioInput] = useState<string>("");
 
   const [isFilterOpen, setIsFilterOpen] = useState(true);
 
+  // Effect to load clients on component mount
+  useEffect(() => {
+    const loadClients = async () => {
+      try {
+        const clients = await fetchClients();
+        setClientsList(clients);
+      } catch (error: any) {
+        toast({ title: "Error", description: error.message, variant: "destructive" });
+      }
+    };
+
+    loadClients();
+  }, [toast]);
+
+  // Effect to load systems when selectedClient changes
+  useEffect(() => {
+    const loadSystems = async () => {
+      if (selectedClient) {
+        try {
+          const systems = await fetchSystemsByClient(selectedClient);
+          setSystemsList(systems);
+          setSelectedSystem(""); // Reset system when client changes
+        } catch (error: any) {
+          toast({ title: "Error", description: error.message, variant: "destructive" });
+        }
+      } else {
+        setSystemsList([]);
+        setSelectedSystem("");
+      }
+    };
+
+    loadSystems();
+  }, [selectedClient, toast]);
+
+
   const { data: licenseTypes = [], isLoading: isLoadingLicenseTypes } = useQuery({
-    queryKey: ['licenseTypes', clientId, systemId],
-    queryFn: () => getLicenseTypes(clientId, systemId),
-    enabled: !!clientId && !!systemId,
+    queryKey: ['licenseTypes', selectedClient, selectedSystem], // Use selectedClient and selectedSystem
+    queryFn: () => getLicenseTypes(selectedClient, selectedSystem), // Pass selectedClient and selectedSystem
+    enabled: !!selectedClient && !!selectedSystem, // Enable only when both are selected
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
   });
 
   const {
     data: requests = [],
-    refetch: refetchRequests, 
+    refetch: refetchRequests,
     isLoading: isLoadingRequests,
   } = useQuery({
     queryKey: ['roleOptimizationRequests'],
@@ -85,58 +132,57 @@ const RoleOptimization = () => {
     }
   });
 
-const handleAnalyze = () => {
-    if (!clientId || !systemId) {
-        toast({
-            title: "Missing Information",
-            description: "Client Name and System SID are required.",
-            variant: "destructive",
-        });
-        return;
+  const handleAnalyze = () => {
+    if (!selectedClient || !selectedSystem) {
+      toast({
+        title: "Missing Information",
+        description: "Client Name and System SID are required.",
+        variant: "destructive",
+      });
+      return;
     }
 
     const roleIdArray = roleIds.split(',').map(id => id.trim()).filter(id => id);
 
-    let roleNamesParam: string[] ;
+    let roleNamesParam: string[];
     if (roleIdArray.length === 0) {
-        roleNamesParam = []; 
+      roleNamesParam = [];
     } else {
-        roleNamesParam = roleIdArray;
+      roleNamesParam = roleIdArray;
     }
 
     const payload: CreateOptimizationRequestPayload = {
-        client_name: clientId,
-        system_id: systemId,
-        role_names: roleNamesParam, // Use the correctly formatted parameter
-        target_license: selectedLicense || undefined,
-        ratio_threshold: ratioInput ? parseFloat(ratioInput) : undefined,
-        validation_type: "role",
-        sap_system_info: SAPsysteminfo || 'S4 HANA OnPremise 1909 Initial Support Pack',
+      client_name: selectedClient, 
+      system_id: selectedSystem, 
+      role_names: roleNamesParam,
+      target_license: selectedLicense || undefined,
+      ratio_threshold: ratioInput ? parseFloat(ratioInput) : undefined,
+      sap_system_info: SAPsysteminfo || 'S4 HANA OnPremise 1909 Initial Support Pack',
     };
-const API_BASE_URL = "http://localhost:8000";
-      const url = `${API_BASE_URL}/optimize/license?client_name=${payload.client_name}&system_id=${payload.system_id}${
-        payload.role_names.length > 0 
-            ? payload.role_names.map(rn => `&role_names=${encodeURIComponent(rn)}`).join('')
-            : ''
-    }&target_license=${payload.target_license || ''}&validation_type=${payload.validation_type || ''}&sap_system_info=${payload.sap_system_info || ''}`;
+    const API_BASE_URL = "http://localhost:8000";
+    const url = `${API_BASE_URL}/optimize/license?client_name=${payload.client_name}&system_id=${payload.system_id}${
+      payload.role_names.length > 0
+        ? payload.role_names.map(rn => `&role_names=${encodeURIComponent(rn)}`).join('')
+        : ''
+    }&target_license=${payload.target_license || ''}&sap_system_info=${payload.sap_system_info || ''}`;
     console.log("Generated URL:", url);
 
     if (payload.ratio_threshold !== undefined && isNaN(payload.ratio_threshold)) {
-        toast({
-            title: "Invalid Input",
-            description: "Ratio Threshold must be a valid number.",
-            variant: "destructive",
-        });
-        return;
+      toast({
+        title: "Invalid Input",
+        description: "Ratio Threshold must be a valid number.",
+        variant: "destructive",
+      });
+      return;
     }
 
     createRequestMutation.mutate(payload);
-};
+  };
 
   const handleClear = () => {
     setRoleIds("");
-    setClientId("");
-    setSystemId("");
+    setSelectedClient(""); // Clear selected client
+    setSelectedSystem(""); // Clear selected system
     setSelectedLicense("");
     setRatioInput("");
     setSAPsysteminfo("");
@@ -164,6 +210,52 @@ const API_BASE_URL = "http://localhost:8000";
             <CollapsibleContent>
               <CardContent className="space-y-4">
                 <div className="grid gap-4 md:grid-cols-3">
+
+                  {/* Client Name Select */}
+                  <div className="space-y-2">
+                    <label htmlFor="clientSelect" className="text-sm font-medium">
+                      Select Client *
+                    </label>
+                    <Select
+                      value={selectedClient}
+                      onValueChange={setSelectedClient}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select Client" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {clientsList.map((client) => (
+                          <SelectItem key={client} value={client}>
+                            {client}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* System SID Select */}
+                  <div className="space-y-2">
+                    <label htmlFor="systemSelect" className="text-sm font-medium">
+                      Select System SID *
+                    </label>
+                    <Select
+                      value={selectedSystem}
+                      onValueChange={setSelectedSystem}
+                      disabled={!selectedClient} // Disable until a client is selected
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder={selectedClient ? "Select System ID" : "Select Client first"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {systemsList.map((system) => (
+                          <SelectItem key={system} value={system}>
+                            {system}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
                   {/* Role IDs */}
                   <div className="space-y-2">
                     <label htmlFor="roleIds" className="text-sm font-medium">
@@ -180,57 +272,17 @@ const API_BASE_URL = "http://localhost:8000";
                     </p>
                   </div>
 
-                  {/* Client Name */}
-                  <div className="space-y-2">
-                    <label htmlFor="clientId" className="text-sm font-medium">
-                      Client Name *
-                    </label>
-                    <Input
-                      id="clientId"
-                      placeholder="Enter the client name"
-                      value={clientId}
-                      onChange={(e) => setClientId(e.target.value)}
-                    />
-                  </div>
-
-                 
-
-                  {/* System SID */}
-                  <div className="space-y-2">
-                    <label htmlFor="systemId" className="text-sm font-medium">
-                      System SID *
-                    </label>
-                    <Input
-                      id="systemId"
-                      placeholder="Enter System SID"
-                      value={systemId}
-                      onChange={(e) => setSystemId(e.target.value)}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label htmlFor="SAPsysteminfo" className="text-sm font-medium">
-                      SAP System Info
-                    </label>
-                    <Input
-                      id="SAPsysteminfo"
-                      placeholder="Enter the system info"
-                      value={SAPsysteminfo}
-                      onChange={(e) => setSAPsysteminfo(e.target.value)}
-                    />
-                  </div>
-
                   {/* License Type */}
                   <div className="space-y-2">
                     <label className="text-sm font-medium" htmlFor="licenseType">
-                      Target License Type
+                      Current Role License Type
                     </label>
                     <select
                       id="licenseType"
                       value={selectedLicense}
                       onChange={(e) => setSelectedLicense(e.target.value)}
                       className="w-full border border-gray-300 rounded-md p-2 text-sm"
-                      disabled={isLoadingLicenseTypes || (!clientId || !systemId)}
+                      disabled={isLoadingLicenseTypes || (!selectedClient || !selectedSystem)} // Disable based on new states
                     >
                       <option value="">Default (GB Advanced Use) or Select</option>
                       {!isLoadingLicenseTypes && licenseOptions.map((license) => (
@@ -264,7 +316,7 @@ const API_BASE_URL = "http://localhost:8000";
                   </Button>
                   <Button
                     onClick={handleAnalyze}
-                    disabled={isAnalyzing || !clientId || !systemId}
+                    disabled={isAnalyzing || !selectedClient || !selectedSystem}
                   >
                     {isAnalyzing ? (
                       <>

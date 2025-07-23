@@ -55,8 +55,9 @@ export const createOptimizationRequest = async (
     }
 
     const finalPayload: CreateOptimizationRequestPayload = {
-        ...payload,
-        validation_type: payload.validation_type || "role",
+        ...payload
+        // ,
+        // validation_type: payload.validation_type || "role",
        
     };
 
@@ -88,13 +89,9 @@ export const getOptimizationRequests = async (
 export const getRoleOptimizationResults = async (
     requestId: string 
 ): Promise<RoleOptimizationResult[]> => { 
-    const numericRequestId = parseInt(requestId, 10);
-    if (isNaN(numericRequestId)) {
-        console.error("Invalid Request ID for fetching results:", requestId);
-        return [];
-    }
+   
     
-    const results = await getOptimizationResultsByRequestIdAPI(numericRequestId); 
+    const results = await getOptimizationResultsByRequestIdAPI(requestId); 
 
     
     return results.map(res => ({

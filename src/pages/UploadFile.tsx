@@ -105,7 +105,7 @@ const FileUploadRow: React.FC<FileUploadRowProps> = ({
 
     try {
       let responseData;
-      if (title.includes("FUE License")) {
+      if (title.includes("FUE License Roles")) {
         responseData = await uploadLicenseData(clientName, systemId,systemRelease, file); 
       } else if (title.includes("Authorization")) {
         responseData = await uploadAuthData(clientName, systemId,systemRelease, file); 
@@ -124,7 +124,7 @@ const FileUploadRow: React.FC<FileUploadRowProps> = ({
   } else if (title.includes("Role License Summary")) {
     responseData = await uploadRoleLicenseSummaryData(clientName, systemId, systemRelease, file);
 
-  } else if (title.includes("Object Field License")) {
+  } else if (title.includes("RuleSet")) {
     responseData = await uploadObjectFieldLicenseData(clientName, systemId, systemRelease, file);
 
   }
@@ -242,7 +242,8 @@ const handleFileUpload = async (
     });
 
     let responseData;
-    if (title.includes("FUE License")) {
+    
+    if (title.includes("FUE License Roles")) {
       responseData = await uploadLicenseData(clientName, systemId,systemRelease, file); 
     } else if (title.includes("Authorization")) {
       responseData = await uploadAuthData(clientName, systemId,systemRelease, file); 
@@ -261,7 +262,7 @@ const handleFileUpload = async (
   } else if (title.includes("Role License Summary")) {
     responseData = await uploadRoleLicenseSummaryData(clientName, systemId, systemRelease, file);
 
-  } else if (title.includes("Object Field License")) {
+  } else if (title.includes("RuleSet")) {
     responseData = await uploadObjectFieldLicenseData(clientName, systemId, systemRelease, file);
 
   } else {
@@ -338,12 +339,6 @@ const UploadFile = () => {
             allowedExtensions={[".csv"]}
             onFileUpload={handleFileUpload}
           />
-{/* 
-          <FileUploadRow
-            title="User Role Data"
-            allowedExtensions={[".csv"]}
-            onFileUpload={handleFileUpload}
-          /> */}
 
           <FileUploadRow
             title="User Role Mapping Data"
@@ -358,7 +353,7 @@ const UploadFile = () => {
           />
 
           <FileUploadRow
-            title="Object Field License Data"
+            title="FUE License RuleSet"
             allowedExtensions={[".csv"]}
             onFileUpload={handleFileUpload}
           />

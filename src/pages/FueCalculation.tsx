@@ -2,8 +2,6 @@ import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -17,9 +15,13 @@ import {
 import { useToast } from "@/components/ui/use-toast";
 import { Loader2, RefreshCw, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-
-// Import the API functions
 import { getLicenseClassificationPivotTable, PivotTableResponse, getRoleDetails, RoleDetailResponse } from "../api/simulation_api";
+import FilterRoles from '../components/FilterRoles';
+import {
+  fetchClients, 
+  fetchSystemsByClient, 
+} from "@/api/data_post";
+
 
 const FueCalculation = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -28,15 +30,47 @@ const FueCalculation = () => {
   const [roleDetails, setRoleDetails] = useState<RoleDetailResponse[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingRoles, setIsLoadingRoles] = useState(false);
-  const [clientName, setClientName] = useState("FUJI");
-  const [systemName, setSystemName] = useState("S4HANA");
+  const [clientsList, setClientsList] = useState<string[]>([]); 
+   const [systemsList, setSystemsList] = useState<string[]>([]); 
+   const [selectedClient, setSelectedClient] = useState<string>(""); 
+   const [selectedSystem, setSelectedSystem] = useState<string>(""); 
   const [hasNoData, setHasNoData] = useState(false);
   const [hasNoRoleData, setHasNoRoleData] = useState(false);
   const { toast } = useToast();
+ useEffect(() => {
+    const loadClients = async () => {
+      try {
+        const clients = await fetchClients();
+        setClientsList(clients);
+      } catch (error: any) {
+        toast({ title: "Error", description: error.message, variant: "destructive" });
+      }
+    };
 
-  // Function to fetch pivot table data
+    loadClients();
+  }, [toast]);
+
+  useEffect(() => {
+    const loadSystems = async () => {
+      if (selectedClient) {
+        try {
+          const systems = await fetchSystemsByClient(selectedClient);
+          setSystemsList(systems);
+          setSelectedSystem(""); 
+        } catch (error: any) {
+          toast({ title: "Error", description: error.message, variant: "destructive" });
+        }
+      } else {
+        setSystemsList([]);
+        setSelectedSystem("");
+      }
+    };
+
+    loadSystems();
+  }, [selectedClient, toast]);
+
   const fetchPivotData = async () => {
-    if (!clientName || !systemName) {
+    if (!selectedClient || !selectedSystem) {
       toast({
         title: "Missing Parameters",
         description: "Please provide both client name and system name.",
@@ -47,19 +81,18 @@ const FueCalculation = () => {
 
     setIsLoading(true);
     setHasNoData(false);
-    
+
     try {
-      console.log("🚀 Fetching pivot data for:", { clientName, systemName });
-      const data = await getLicenseClassificationPivotTable(clientName, systemName);
+      console.log("🚀 Fetching pivot data for:", { selectedClient, selectedSystem });
+      const data = await getLicenseClassificationPivotTable(selectedClient, selectedSystem);
       setPivotData(data);
-      
-      // Check if the data indicates no records found
+
       const totalUsers = data.pivot_table.Users.Total;
       if (totalUsers === 0) {
         setHasNoData(true);
         toast({
           title: "No Data Found",
-          description: `No data found for client "${clientName}" and system "${systemName}".`,
+          description: `No data found for client "${selectedClient}" and system "${selectedSystem}".`,
           variant: "destructive",
         });
       } else {
@@ -73,14 +106,13 @@ const FueCalculation = () => {
     } catch (error) {
       console.error("❌ Error fetching pivot data:", error);
       const errorMessage = error instanceof Error ? error.message : "Failed to load FUE data.";
-      
-      // Check if it's a "not found" type error
-      if (errorMessage.toLowerCase().includes('not found') || 
+
+      if (errorMessage.toLowerCase().includes('not found') ||
           errorMessage.toLowerCase().includes('no data') ||
           errorMessage.toLowerCase().includes('does not exist')) {
         setHasNoData(true);
       }
-      
+
       toast({
         title: "Error",
         description: "No Data found",
@@ -91,41 +123,40 @@ const FueCalculation = () => {
     }
   };
 
-  // Function to fetch role details data
   const fetchRoleDetails = async () => {
-    if (!clientName || !systemName) {
+    if (!selectedClient || !selectedSystem) {
       return;
     }
 
     setIsLoadingRoles(true);
     setHasNoRoleData(false);
-    
+
     try {
-      console.log("🚀 Fetching role details for:", { clientName, systemName });
-      const data = await getRoleDetails(clientName, systemName);
+      console.log("🚀 Fetching role details for:", { selectedClient, selectedSystem });
+      const data = await getRoleDetails(selectedClient, selectedSystem);
       setRoleDetails(data);
-      
+
       if (data.length === 0) {
         setHasNoRoleData(true);
         toast({
           title: "No Role Data Found",
-          description: `No role details found for client "${clientName}" and system "${systemName}".`,
+          description: `No role details found for client "${selectedClient}" and system "${selectedSystem}".`,
           variant: "destructive",
         });
       } else {
         setHasNoRoleData(false);
-        console.log(`✅ Loaded ${data.length} role details`);
+       
       }
     } catch (error) {
       console.error("❌ Error fetching role details:", error);
       const errorMessage = error instanceof Error ? error.message : "Failed to load role details.";
-      
-      if (errorMessage.toLowerCase().includes('not found') || 
+
+      if (errorMessage.toLowerCase().includes('not found') ||
           errorMessage.toLowerCase().includes('no data') ||
           errorMessage.toLowerCase().includes('does not exist')) {
         setHasNoRoleData(true);
       }
-      
+
       toast({
         title: "Error",
         description: "Failed to load role details",
@@ -137,18 +168,15 @@ const FueCalculation = () => {
     }
   };
 
-  // Load data on component mount
   useEffect(() => {
     fetchPivotData();
     fetchRoleDetails();
   }, []);
 
-  // Function to reload both pivot and role data
   const reloadAllData = async () => {
     await Promise.all([fetchPivotData(), fetchRoleDetails()]);
   };
 
-  // Transform API data for display
   const getFueCalculation = () => {
     if (!pivotData || hasNoData) {
       return {
@@ -164,20 +192,20 @@ const FueCalculation = () => {
     return {
       totalFue: pivotData.fue_summary["Total FUE Required"],
       breakdown: [
-        { 
-          classification: "GB - Advanced Use", 
-          users: pivotData.pivot_table.Users["GB Advanced Use"], 
-          fue: pivotData.fue_summary["GB Advanced Use FUE"] 
+        {
+          classification: "GB - Advanced Use",
+          users: pivotData.pivot_table.Users["GB Advanced Use"],
+          fue: pivotData.fue_summary["GB Advanced Use FUE"]
         },
-        { 
-          classification: "GC - Core Use", 
-          users: pivotData.pivot_table.Users["GC Core Use"], 
-          fue: pivotData.fue_summary["GC Core Use FUE"] 
+        {
+          classification: "GC - Core Use",
+          users: pivotData.pivot_table.Users["GC Core Use"],
+          fue: pivotData.fue_summary["GC Core Use FUE"]
         },
-        { 
-          classification: "GD - Self-Service Use", 
-          users: pivotData.pivot_table.Users["GD Self-Service Use"], 
-          fue: pivotData.fue_summary["GD Self-Service Use FUE"] 
+        {
+          classification: "GD - Self-Service Use",
+          users: pivotData.pivot_table.Users["GD Self-Service Use"],
+          fue: pivotData.fue_summary["GD Self-Service Use FUE"]
         }
       ]
     };
@@ -185,49 +213,103 @@ const FueCalculation = () => {
 
   const fueCalculation = getFueCalculation();
 
-  // Filter roles based on search and license filter
+  const wildcardToRegExp = (pattern: string): RegExp => {
+    let regexPattern;
+    const hasExplicitWildcard = pattern.includes('*') || pattern.includes('%');
+
+    if (hasExplicitWildcard) {
+      let escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
+      regexPattern = escaped.replace(/[*%]/g, '.*');
+      regexPattern = `^${regexPattern}$`;
+    } else {
+     
+      let escaped = pattern.replace(/[+?^${}()|[\]\\]/g, '\\$&');
+      regexPattern = `^${escaped}.*`; 
+    }
+    
+    return new RegExp(regexPattern, 'i'); 
+  };
+
+
   const filteredRoles = roleDetails.filter(role => {
-    const matchesSearch = !searchTerm || 
-      role.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      role.profile.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      role.description.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesLicense = licenseFilter === "all" || 
+    const lowerCaseSearchTerm = searchTerm.toLowerCase().trim();
+
+    const searchRegExp = lowerCaseSearchTerm ? wildcardToRegExp(lowerCaseSearchTerm) : null;
+
+    const matchesSearch = !searchRegExp ||
+      searchRegExp.test(role.id.toLowerCase());
+
+    const matchesLicense = licenseFilter === "all" ||
       role.classification.toLowerCase().includes(licenseFilter.toLowerCase());
-    
+
+
+
     return matchesSearch && matchesLicense;
   });
 
-  const displayedRoles = filteredRoles.slice(0, 10);
+  useEffect(() => {
+    console.log(`Number of filtered roles: ${filteredRoles.length}`);
+    if (filteredRoles.length > 0) {
+        console.log("First filtered role ID:", filteredRoles[0].id);
+    }
+  }, [filteredRoles]);
+
+  const displayedRoles = filteredRoles;
 
   return (
     <Layout title="FUE Calculation">
       <div className="space-y-6">
-        {/* Client/System Selection */}
+        
         <Card>
           <CardHeader>
             <CardTitle>System Selection</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid gap-4 md:grid-cols-4">
-              <div>
-                <Label htmlFor="client-name">Client Name</Label>
-                <Input
-                  id="client-name"
-                  value={clientName}
-                  onChange={(e) => setClientName(e.target.value)}
-                  placeholder="Enter client name"
-                />
-              </div>
-              <div>
-                <Label htmlFor="system-name">System Name</Label>
-                <Input
-                  id="system-name"
-                  value={systemName}
-                  onChange={(e) => setSystemName(e.target.value)}
-                  placeholder="Enter system name"
-                />
-              </div>
+             {/* Client Name Select */}
+                               <div className="space-y-2">
+                                 <label htmlFor="clientSelect" className="text-sm font-medium">
+                                   Select Client *
+                                 </label>
+                                 <Select
+                                   value={selectedClient}
+                                   onValueChange={setSelectedClient}
+                                 >
+                                   <SelectTrigger className="w-full">
+                                     <SelectValue placeholder="Select Client" />
+                                   </SelectTrigger>
+                                   <SelectContent>
+                                     {clientsList.map((client) => (
+                                       <SelectItem key={client} value={client}>
+                                         {client}
+                                       </SelectItem>
+                                     ))}
+                                   </SelectContent>
+                                 </Select>
+                               </div>
+             
+                               {/* System SID Select */}
+                               <div className="space-y-2">
+                                 <label htmlFor="systemSelect" className="text-sm font-medium">
+                                   Select System SID *
+                                 </label>
+                                 <Select
+                                   value={selectedSystem}
+                                   onValueChange={setSelectedSystem}
+                                   disabled={!selectedClient} // Disable until a client is selected
+                                 >
+                                   <SelectTrigger className="w-full">
+                                     <SelectValue placeholder={selectedClient ? "Select System ID" : "Select Client first"} />
+                                   </SelectTrigger>
+                                   <SelectContent>
+                                     {systemsList.map((system) => (
+                                       <SelectItem key={system} value={system}>
+                                         {system}
+                                       </SelectItem>
+                                     ))}
+                                   </SelectContent>
+                                 </Select>
+                               </div>
               <div className="flex items-end">
                 <Button
                   onClick={reloadAllData}
@@ -250,7 +332,7 @@ const FueCalculation = () => {
           <Alert className="border-amber-200 bg-amber-50">
             <AlertCircle className="h-4 w-4 text-amber-600" />
             <AlertDescription className="text-amber-800">
-              <strong>No data found</strong> for client "<strong>{clientName}</strong>" and system "<strong>{systemName}</strong>". 
+              <strong>No data found</strong> for client "<strong>{selectedClient}</strong>" and system "<strong>{selectedSystem}</strong>".
               Please verify the client and system names are correct, or try a different combination.
             </AlertDescription>
           </Alert>
@@ -261,11 +343,6 @@ const FueCalculation = () => {
           <CardHeader>
             <CardTitle className="text-xl">
               Full Use Equivalent Summary
-              {/* {pivotData && !hasNoData && (
-                <span className="text-sm font-normal text-gray-600 ml-2">
-                  ({pivotData.client_name} - {pivotData.system_name})
-                </span>
-              )} */}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -315,38 +392,13 @@ const FueCalculation = () => {
 
         {/* Filters - Only show if we have data */}
         {!hasNoData && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Filter Roles</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 md:grid-cols-3">
-                <div>
-                  <Label htmlFor="search">Search by Role ID or Description</Label>
-                  <Input
-                    id="search"
-                    placeholder="Enter role ID or description..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="license-filter">License Type</Label>
-                  <Select value={licenseFilter} onValueChange={setLicenseFilter}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select license type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All License Types</SelectItem>
-                      <SelectItem value="gb">GB - Advanced Use</SelectItem>
-                      <SelectItem value="gc">GC - Core Use</SelectItem>
-                      <SelectItem value="gd">GD - Self-Service Use</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <FilterRoles
+            searchTerm={searchTerm}
+            setSearchTerm={setSearchTerm}
+            licenseFilter={licenseFilter}
+            setLicenseFilter={setLicenseFilter}
+            isSearching={isLoadingRoles}
+          />
         )}
 
         {/* Roles Table - Only show if we have data */}
@@ -373,7 +425,7 @@ const FueCalculation = () => {
                 <div className="flex justify-center items-center py-8 text-gray-500">
                   <div className="text-center">
                     <AlertCircle className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                    <p className="text-lg font-medium">No Role Data Available</p>
+                    <p className="lg:text-lg font-medium">No Role Data Available</p>
                     <p className="text-sm">No role details found for the selected client and system.</p>
                   </div>
                 </div>
@@ -391,32 +443,34 @@ const FueCalculation = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {displayedRoles.map((role) => (
-                        <TableRow key={role.id} className="cursor-pointer hover:bg-gray-50">
-                          <TableCell>
-  <Link
-    to={`/role-details/${encodeURIComponent(role.id)}`} 
-    state={{ clientName: clientName, systemName: systemName }} // State as a direct prop
-    className="text-blue-600 hover:text-blue-800 font-medium"
-  >
-    {role.id}
-  </Link>
-</TableCell>
-                         
-                          <TableCell>{role.classification}</TableCell>
-                          <TableCell>{role.gb}</TableCell>
-                          <TableCell>{role.gc}</TableCell>
-                          <TableCell>{role.gd}</TableCell>
-                          <TableCell className="font-medium">{role.assignedUsers.toLocaleString()}</TableCell>
+                      {filteredRoles.length > 0 ? (
+                        filteredRoles.map((role) => (
+                          <TableRow key={role.id} className="cursor-pointer hover:bg-gray-50">
+                            <TableCell>
+                              <Link
+                                to={`/role-details/${encodeURIComponent(role.id)}`}
+                                state={{ clientName: selectedClient, systemName: selectedSystem }}
+                                className="text-blue-600 hover:text-blue-800 font-medium"
+                              >
+                                {role.id}
+                              </Link>
+                            </TableCell>
+                            <TableCell>{role.classification}</TableCell>
+                            <TableCell>{role.gb}</TableCell>
+                            <TableCell>{role.gc}</TableCell>
+                            <TableCell>{role.gd}</TableCell>
+                            <TableCell className="font-medium">{role.assignedUsers.toLocaleString()}</TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center text-gray-500 py-4">
+                            No roles match your current filters.
+                          </TableCell>
                         </TableRow>
-                      ))}
+                      )}
                     </TableBody>
                   </Table>
-                  {roleDetails.length > 10 && (
-                    <div className="mt-4 text-sm text-gray-500 text-center">
-                      Showing first 10 of {filteredRoles.length} filtered roles
-                    </div>
-                  )}
                 </div>
               )}
             </CardContent>
@@ -428,4 +482,3 @@ const FueCalculation = () => {
 };
 
 export default FueCalculation;
-
