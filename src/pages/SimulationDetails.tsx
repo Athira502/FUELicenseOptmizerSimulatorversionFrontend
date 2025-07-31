@@ -100,7 +100,7 @@ const SimulationDetails = () => {
       if (!grouped[roleIdentifier]) {
         grouped[roleIdentifier] = {
           roleId: roleIdentifier,
-          roleDescription: roleIdentifier,
+          roleDescription: change.role_description,
           currentLicense: change.prev_license || "N/A",
           simulatedLicense: change.current_license || "Removed",
           changes: [],

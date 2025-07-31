@@ -207,130 +207,132 @@ const RoleOptimization = () => {
             </CardTitle>
           </CardHeader>
           <Collapsible open={isFilterOpen} onOpenChange={setIsFilterOpen}>
-            <CollapsibleContent>
-              <CardContent className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-3">
+  <CollapsibleContent>
+    <CardContent className="space-y-4">
+      
+      {/* Row 1: Client Name and System SID */}
+      <div className="grid gap-4 md:grid-cols-2">
+        {/* Client Name Select */}
+        <div className="space-y-2">
+          <label htmlFor="clientSelect" className="text-sm font-medium">
+            Select Client *
+          </label>
+          <Select value={selectedClient} onValueChange={setSelectedClient}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select Client" />
+            </SelectTrigger>
+            <SelectContent>
+              {clientsList.map((client) => (
+                <SelectItem key={client} value={client}>
+                  {client}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
-                  {/* Client Name Select */}
-                  <div className="space-y-2">
-                    <label htmlFor="clientSelect" className="text-sm font-medium">
-                      Select Client *
-                    </label>
-                    <Select
-                      value={selectedClient}
-                      onValueChange={setSelectedClient}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select Client" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {clientsList.map((client) => (
-                          <SelectItem key={client} value={client}>
-                            {client}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+        {/* System SID Select */}
+        <div className="space-y-2">
+          <label htmlFor="systemSelect" className="text-sm font-medium">
+            Select System SID *
+          </label>
+          <Select
+            value={selectedSystem}
+            onValueChange={setSelectedSystem}
+            disabled={!selectedClient}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder={selectedClient ? "Select System ID" : "Select Client first"} />
+            </SelectTrigger>
+            <SelectContent>
+              {systemsList.map((system) => (
+                <SelectItem key={system} value={system}>
+                  {system}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
 
-                  {/* System SID Select */}
-                  <div className="space-y-2">
-                    <label htmlFor="systemSelect" className="text-sm font-medium">
-                      Select System SID *
-                    </label>
-                    <Select
-                      value={selectedSystem}
-                      onValueChange={setSelectedSystem}
-                      disabled={!selectedClient} // Disable until a client is selected
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder={selectedClient ? "Select System ID" : "Select Client first"} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {systemsList.map((system) => (
-                          <SelectItem key={system} value={system}>
-                            {system}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+      {/* Row 2: Role ID, License Type, Ratio Input */}
+      <div className="grid gap-4 md:grid-cols-3">
+        {/* Role IDs */}
+        <div className="space-y-2">
+          <label htmlFor="roleIds" className="text-sm font-medium">
+            Role ID(s)
+          </label>
+          <Input
+            id="roleIds"
+            placeholder="Enter one or more role IDs, comma separated"
+            value={roleIds}
+            onChange={(e) => setRoleIds(e.target.value)}
+          />
+          <p className="text-xs text-gray-500">
+            Leave blank to analyze all roles
+          </p>
+        </div>
 
-                  {/* Role IDs */}
-                  <div className="space-y-2">
-                    <label htmlFor="roleIds" className="text-sm font-medium">
-                      Role ID(s)
-                    </label>
-                    <Input
-                      id="roleIds"
-                      placeholder="Enter one or more role IDs, comma separated"
-                      value={roleIds}
-                      onChange={(e) => setRoleIds(e.target.value)}
-                    />
-                    <p className="text-xs text-gray-500">
-                      Leave blank to analyze all roles
-                    </p>
-                  </div>
+        {/* License Type */}
+        <div className="space-y-2">
+          <label className="text-sm font-medium" htmlFor="licenseType">
+            Current Role License Type
+          </label>
+          <select
+            id="licenseType"
+            value={selectedLicense}
+            onChange={(e) => setSelectedLicense(e.target.value)}
+            className="w-full border border-gray-300 rounded-md p-2 text-sm"
+            disabled={isLoadingLicenseTypes || (!selectedClient || !selectedSystem)}
+          >
+            <option value="">Default (GB Advanced Use) or Select</option>
+            {!isLoadingLicenseTypes && licenseOptions.map((license) => (
+              <option key={license.value} value={license.value}>
+                {license.label}
+              </option>
+            ))}
+          </select>
+          {isLoadingLicenseTypes && <p className="text-xs text-gray-500">Loading license types...</p>}
+        </div>
 
-                  {/* License Type */}
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium" htmlFor="licenseType">
-                      Current Role License Type
-                    </label>
-                    <select
-                      id="licenseType"
-                      value={selectedLicense}
-                      onChange={(e) => setSelectedLicense(e.target.value)}
-                      className="w-full border border-gray-300 rounded-md p-2 text-sm"
-                      disabled={isLoadingLicenseTypes || (!selectedClient || !selectedSystem)} // Disable based on new states
-                    >
-                      <option value="">Default (GB Advanced Use) or Select</option>
-                      {!isLoadingLicenseTypes && licenseOptions.map((license) => (
-                        <option key={license.value} value={license.value}>
-                          {license.label}
-                        </option>
-                      ))}
-                    </select>
-                    {isLoadingLicenseTypes && <p className="text-xs text-gray-500">Loading license types...</p>}
-                  </div>
+        {/* Ratio Input */}
+        <div className="space-y-2">
+          <label className="text-sm font-medium" htmlFor="ratioInput">
+            Ratio Threshold (e.g., 20)
+          </label>
+          <Input
+            id="ratioInput"
+            type="number"
+            placeholder="Enter max AGR_RATIO (optional)"
+            value={ratioInput}
+            onChange={(e) => setRatioInput(e.target.value)}
+            min="1"
+          />
+        </div>
+      </div>
 
-                  {/* Ratio Input */}
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium" htmlFor="ratioInput">
-                      Ratio Threshold (e.g., 20)
-                    </label>
-                    <Input
-                      id="ratioInput"
-                      type="number"
-                      placeholder="Enter max AGR_RATIO (optional)"
-                      value={ratioInput}
-                      onChange={(e) => setRatioInput(e.target.value)}
-                      min="1"
-                    />
-                  </div>
-                </div>
+      <div className="flex items-center justify-end space-x-2 pt-4">
+        <Button variant="outline" onClick={handleClear}>
+          Clear
+        </Button>
+        <Button
+          onClick={handleAnalyze}
+          disabled={isAnalyzing || !selectedClient || !selectedSystem}
+        >
+          {isAnalyzing ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Analyzing...
+            </>
+          ) : (
+            "Analyze"
+          )}
+        </Button>
+      </div>
+    </CardContent>
+  </CollapsibleContent>
+</Collapsible>
 
-                <div className="flex items-center justify-end space-x-2 pt-4">
-                  <Button variant="outline" onClick={handleClear}>
-                    Clear
-                  </Button>
-                  <Button
-                    onClick={handleAnalyze}
-                    disabled={isAnalyzing || !selectedClient || !selectedSystem}
-                  >
-                    {isAnalyzing ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Analyzing...
-                      </>
-                    ) : (
-                      "Analyze"
-                    )}
-                  </Button>
-                </div>
-              </CardContent>
-            </CollapsibleContent>
-          </Collapsible>
         </Card>
 
         <div>

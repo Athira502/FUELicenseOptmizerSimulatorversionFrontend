@@ -213,6 +213,20 @@ const SimulationRun = () => {
     }
   };
 
+useEffect(() => {
+  if (error) {
+    const timer = setTimeout(() => {
+      setError("");
+    }, 10); // ⏱️ Auto-clear after 4 seconds
+
+    return () => clearTimeout(timer); // 🧹 Cleanup on re-render
+  }
+}, [error]);
+
+useEffect(() => {
+  setError(""); // Clear error when navigating away or returning
+}, [location.pathname]);
+
   return (
     <Layout title="Simulation Run">
       <div className="space-y-6">

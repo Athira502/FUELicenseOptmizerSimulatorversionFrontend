@@ -101,6 +101,7 @@ export interface SimulationResult {
 export interface SimulationChange {
   id:number,
   role: string;
+  role_description: string,
   object: string;
   field: string;
   value_low: string;
