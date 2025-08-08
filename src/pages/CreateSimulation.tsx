@@ -1235,7 +1235,7 @@ const handleRunSimulation = async () => {
 
     console.log(`About to send ${allChangesToSend.length} changes: ${summaryText}`);
 
-    // Call the unified API endpoint
+    // Call the unified API endpoint - this should return immediately now
     const response = await applySimulationChangesToDb(selectedClient.trim(), selectedSystem.trim(), allChangesToSend);
     console.log("Backend response:", response);
 
@@ -1244,10 +1244,10 @@ const handleRunSimulation = async () => {
 
     // Show immediate success message with simulation ID
     toast({
-      title: "Simulation Started",
-      description: `Simulation ${requestNumber} initiated successfully. ${summaryText}. Processing in background...`,
+      title: "Simulation Started Successfully",
+      description: `Simulation ${requestNumber} has been queued for processing. ${summaryText} will be applied in the background.`,
       variant: "default",
-      duration: 1200,
+      duration: 1500,
     });
 
     // Clear all localStorage after successful initiation
@@ -1261,19 +1261,40 @@ const handleRunSimulation = async () => {
       setSavedChanges(false);
     }
 
-    
-    navigate(`/simulation-run?client=${encodeURIComponent(selectedClient.trim())}&system=${encodeURIComponent(selectedSystem.trim())}&highlight=${requestNumber}&refresh=true`);
+    // Navigate to simulation run page with refresh parameter
+    // Add a small delay to ensure the navigation happens after the toast
+    setTimeout(() => {
+      navigate(`/simulation-run?client=${encodeURIComponent(selectedClient.trim())}&system=${encodeURIComponent(selectedSystem.trim())}&highlight=${requestNumber}&refresh=true`);
+    }, 100);
 
   } catch (err) {
     console.error("Error running simulation:", err);
     const errorMessage = err instanceof Error ? err.message : 'Failed to run simulation';
     setError(errorMessage);
-    toast({
-      title: "Error Running Simulation",
-      description: `Failed to start simulation: ${errorMessage}`,
-      variant: "destructive",
-      duration: 1400,
-    });
+    
+    // More specific error handling
+    if (errorMessage.includes('500') || errorMessage.includes('initialization failed')) {
+      toast({
+        title: "Server Error",
+        description: "The simulation service is temporarily unavailable. Please try again in a moment.",
+        variant: "destructive",
+        duration: 2000,
+      });
+    } else if (errorMessage.includes('timeout') || errorMessage.includes('network')) {
+      toast({
+        title: "Connection Error", 
+        description: "Network connection issue. Please check your connection and try again.",
+        variant: "destructive",
+        duration: 2000,
+      });
+    } else {
+      toast({
+        title: "Error Starting Simulation",
+        description: `Failed to start simulation: ${errorMessage}`,
+        variant: "destructive",
+        duration: 1800,
+      });
+    }
   } finally {
     setSimulationRunning(false);
   }
@@ -1361,24 +1382,6 @@ const handleRunSimulation = async () => {
             <ArrowLeft className="mr-1 h-4 w-4" /> Back to Simulation Run 
 
           </Link> 
-
- 
-
-          {pendingChangesSummary && ( 
-
-            <div className="flex items-center gap-2"> 
-
-              <AlertCircle className="h-4 w-4 text-amber-500" /> 
-
-              <span className="text-sm text-amber-700"> 
-
-                {pendingChangesSummary.totalChanges} pending changes across {Object.keys(allEditedObjects).length} roles 
-
-              </span> 
-
-            </div> 
-
-          )} 
 
         </div> 
 

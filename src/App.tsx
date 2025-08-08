@@ -50,7 +50,6 @@ const App = () => (
           <Route path="/view-logs" element={<ViewLogs />} />
           <Route path="/ai-config" element={<AIConfig />} />
           <Route path="/db-config" element={<DBConfig />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </TooltipProvider>

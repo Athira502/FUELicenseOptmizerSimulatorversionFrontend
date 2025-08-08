@@ -400,16 +400,7 @@ const LogManagement = () => {
               )}
             </div>
 
-            {/* <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-              <h4 className="text-sm font-medium text-yellow-800 mb-2">Important Notes:</h4>
-              <ul className="text-xs text-yellow-700 space-y-1">
-                <li>• Changes apply immediately to all new log entries</li>
-                <li>• Previous logs in existing files remain unchanged</li>
-                <li>• EXACT filtering means you see ONLY the selected level, not higher levels</li>
-                <li>• Choose DEBUG to see detailed diagnostic information</li>
-                <li>• Choose ERROR if you only want to see problems</li>
-              </ul>
-            </div> */}
+          
           </div>
         </CardContent>
       </Card>

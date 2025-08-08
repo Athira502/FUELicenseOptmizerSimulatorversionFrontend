@@ -290,19 +290,19 @@ const RoleOptimizationResults = () => {
                     filteredResults.map((result) => (
                       <TableRow key={result.id}>
                         <TableCell
-                          className="font-medium border-r whitespace-pre-wrap break-words" // Ensure cell content wraps too
+                          className="font-medium border-r whitespace-pre-wrap break-words" 
                           style={{ width: `${columnWidths.roleId}px` }}
                         >
                           {result.role_id}
                         </TableCell>
                         <TableCell
-                          className="border-r whitespace-pre-wrap break-words" // Ensure cell content wraps too
+                          className="border-r whitespace-pre-wrap break-words" 
                           style={{ width: `${columnWidths.roleDescription}px` }}
                         >
                           {result.role_description || "-"}
                         </TableCell>
                         <TableCell
-                          className="border-r whitespace-pre-wrap break-words" // Ensure cell content wraps too
+                          className="border-r whitespace-pre-wrap break-words" 
                           style={{ width: `${columnWidths.authObject}px` }}
                         >
                           {result.auth_object || "-"}

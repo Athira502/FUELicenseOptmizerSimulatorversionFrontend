@@ -282,21 +282,6 @@ export const applySimulationChangesToDb = async (
   }
 };
 
-// export const applySimulationChangesToDb = async (
-//   clientName: string,
-//   systemName: string,
-//   changes: SimulationChangePayload[]
-// ): Promise<any> => {
-//   try {
-//     const response = await axios.post(`${API_BASE_URL}/simulator/apply-simulation-changes/`, changes, {
-//       params: { client_name: clientName, system_name: systemName }
-//     });
-//     return response.data;
-//   } catch (error) {
-//     console.error("Error applying simulation changes to DB:", error);
-//     throw error;
-//   }
-// };
 
 
 export const getLicenseClassificationPivotTableforSim = async (

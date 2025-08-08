@@ -39,15 +39,41 @@ const SimulationRun = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Auto-refresh functionality for in-progress simulations
   useEffect(() => {
+    let retryCount = 0;
+    const maxRetries = 3;
+    
     if (autoRefresh && selectedClient && selectedSystem) {
-      refreshIntervalRef.current = setInterval(async () => {
-        const fetchedActualFue = await fetchActualFue();
-        await fetchSimulationResults(fetchedActualFue, false); // Silent refresh
-      }, 5000); // Refresh every 5 seconds
+      const refreshWithRetry = async () => {
+        try {
+          const fetchedActualFue = await fetchActualFue();
+          await fetchSimulationResults(fetchedActualFue, false); // Silent refresh
+          retryCount = 0; // Reset retry count on success
+        } catch (error) {
+          console.error("Auto-refresh failed:", error);
+          retryCount++;
+          
+          if (retryCount >= maxRetries) {
+            console.warn("Auto-refresh disabled after multiple failures");
+            setAutoRefresh(false);
+            toast({
+              title: "Auto-refresh Disabled",
+              description: "Multiple refresh attempts failed. Please manually refresh to check simulation status.",
+              variant: "destructive",
+              duration: 2000,
+            });
+          }
+        }
+      };
+
+      // Initial refresh after a short delay
+      const initialTimeout = setTimeout(refreshWithRetry, 1000);
+      
+      // Set up interval for subsequent refreshes
+      refreshIntervalRef.current = setInterval(refreshWithRetry, 5000);
 
       return () => {
+        clearTimeout(initialTimeout);
         if (refreshIntervalRef.current) {
           clearInterval(refreshIntervalRef.current);
           refreshIntervalRef.current = null;
@@ -56,13 +82,24 @@ const SimulationRun = () => {
     }
   }, [autoRefresh, selectedClient, selectedSystem]);
 
-  // Check if there are in-progress simulations to enable auto-refresh
-  useEffect(() => {
+ useEffect(() => {
     const hasInProgressSimulations = simulations.some(sim => 
-      sim.status === "In Progress" || sim.status === "Processing Changes"
+      sim.status === "In Progress" || 
+      sim.status === "Processing Changes" ||
+      sim.status === "Queued" // Add support for queued status if used
     );
-    setAutoRefresh(hasInProgressSimulations);
-  }, [simulations]);
+    
+    if (hasInProgressSimulations !== autoRefresh) {
+      setAutoRefresh(hasInProgressSimulations);
+      
+      if (hasInProgressSimulations) {
+        console.log("Auto-refresh enabled - simulations in progress detected");
+      } else {
+        console.log("Auto-refresh disabled - all simulations completed");
+      }
+    }
+  }, [simulations, autoRefresh]);
+ 
 
   useEffect(() => {
     const loadClients = async () => {
@@ -147,75 +184,107 @@ const SimulationRun = () => {
     }
   };
 
-  const fetchSimulationResults = async (currentActualFue = null, showLoading = true) => {
-    if (!selectedClient || !selectedSystem) {
-      setError("Please enter both client name and system name");
-      return;
-    }
+  
+const fetchSimulationResults = async (currentActualFue = null, showLoading = true) => {
+  if (!selectedClient || !selectedSystem) {
+    setError("Please enter both client name and system name");
+    return;
+  }
 
-    if (showLoading) setLoading(true);
-    setError("");
+  if (showLoading) setLoading(true);
+  setError("");
 
-    try {
-      const apiResponse = await getSimulationResults(selectedClient, selectedSystem);
-      const resultsData = apiResponse.results;
-      const resultsArray = Array.isArray(resultsData) ? resultsData : (resultsData ? [resultsData] : []);
+  try {
+    const apiResponse = await getSimulationResults(selectedClient, selectedSystem);
+    const resultsData = apiResponse.results;
+    const resultsArray = Array.isArray(resultsData) ? resultsData : (resultsData ? [resultsData] : []);
 
-      const transformedSimulations = resultsArray.map((result) => {
-        let date;
-        if (result.timestamp && typeof result.timestamp === 'string') {
-          try {
-            date = new Date(result.timestamp.replace(' ', 'T'));
-          } catch (error) {
-            console.warn(`Invalid timestamp format simulation run ID ${result.simulation_run_id}: ${result.timestamp}`, error);
-            date = new Date();
-          }
-        } else {
-          console.warn(`Missing or invalid timestamp in simulation run ID ${result.simulation_run_id}:`, result.timestamp);
+    const transformedSimulations = resultsArray.map((result) => {
+      let date;
+      if (result.timestamp && typeof result.timestamp === 'string') {
+        try {
+          date = new Date(result.timestamp.replace(' ', 'T'));
+        } catch (error) {
+          console.warn(`Invalid timestamp format simulation run ID ${result.simulation_run_id}: ${result.timestamp}`, error);
           date = new Date();
         }
-
-        const actualFueValue = currentActualFue || actualFue || (result.simulation_results?.fue_summary?.["Total FUE Required"]) || 306;
-        const simulationFue = typeof result.fue_required === 'string' ? parseFloat(result.fue_required) : result.fue_required || 0;
-
-        // Determine status based on backend response
-        let status = result.status || "Completed";
-        if (status === "In Progress" || status === "Processing Changes") {
-          status = result.status;
-        }
-
-        return {
-          id: `${selectedClient}-${selectedSystem}-${result.simulation_run_id}`,
-          name: result.simulation_run_id,
-          date: date.toISOString().split('T')[0],
-          time: date.toTimeString().split(' ')[0].substring(0, 5),
-          simulationFue: simulationFue,
-          actualFue: actualFueValue,
-          savings: actualFueValue - simulationFue,
-          status: status,
-          timestamp: result.timestamp,
-          changes: result.changes,
-          summary: result.summary,
-          simulationResults: result.simulation_results,
-          simulation_run_id: result.simulation_run_id,
-          roleDescription: result.role_description || "Simulation processing..."
-        };
-      });
-
-      // Sort by timestamp, newest first
-      transformedSimulations.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-
-      setSimulations(transformedSimulations);
-    } catch (err) {
-      console.error("Error fetching simulation results:", err);
-      if (showLoading) {
-        setError(`Error fetching simulation results: ${err.message}`);
+      } else {
+        console.warn(`Missing or invalid timestamp in simulation run ID ${result.simulation_run_id}:`, result.timestamp);
+        date = new Date();
       }
-    } finally {
-      if (showLoading) setLoading(false);
-    }
-  };
 
+      const actualFueValue = currentActualFue || actualFue || (result.simulation_results?.fue_summary?.["Total FUE Required"]) || 306;
+      const simulationFue = typeof result.fue_required === 'string' ? parseFloat(result.fue_required) : result.fue_required || 0;
+
+      // Use status directly from backend response
+      let status = result.status || "Completed";  // Now this should come from the API
+      let roleDescription = result.role_description || "";
+      
+      // Enhanced status handling
+      if (status === "In Progress" || status === "Processing Changes") {
+        roleDescription = roleDescription || "Processing simulation changes...";
+      } else if (status === "Failed") {
+        roleDescription = roleDescription || "Simulation failed - please try again";
+      }
+
+      // Log status for debugging
+      console.log(`Simulation ${result.simulation_run_id} status: ${status}`);
+
+      return {
+        id: `${selectedClient}-${selectedSystem}-${result.simulation_run_id}`,
+        name: result.simulation_run_id,
+        date: date.toISOString().split('T')[0],
+        time: date.toTimeString().split(' ')[0].substring(0, 5),
+        simulationFue: simulationFue,
+        actualFue: actualFueValue,
+        savings: actualFueValue - simulationFue,
+        status: status,  // This should now reflect the actual status
+        timestamp: result.timestamp,
+        changes: result.changes,
+        summary: result.summary,
+        simulationResults: result.simulation_results,
+        simulation_run_id: result.simulation_run_id,
+        roleDescription: roleDescription
+      };
+    });
+
+    // Sort by timestamp, newest first
+    transformedSimulations.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+    setSimulations(transformedSimulations);
+    
+    // Show completion notification for newly completed simulations
+    if (!showLoading && highlightedSimulation) {
+      const highlightedSim = transformedSimulations.find(sim => 
+        sim.simulation_run_id === highlightedSimulation
+      );
+      
+      if (highlightedSim && highlightedSim.status === "Completed") {
+        toast({
+          title: "Simulation Completed",
+          description: `Simulation ${highlightedSimulation} has finished processing successfully.`,
+          variant: "default",
+          duration: 1500,
+        });
+      } else if (highlightedSim && highlightedSim.status === "Failed") {
+        toast({
+          title: "Simulation Failed",
+          description: `Simulation ${highlightedSimulation} encountered an error during processing.`,
+          variant: "destructive",
+          duration: 2000,
+        });
+      }
+    }
+    
+  } catch (err) {
+    console.error("Error fetching simulation results:", err);
+    if (showLoading) {
+      setError(`Error fetching simulation results: ${err.message}`);
+    }
+  } finally {
+    if (showLoading) setLoading(false);
+  }
+};
   // Modified useEffect to ensure proper sequencing
   useEffect(() => {
     const loadData = async () => {
@@ -237,13 +306,23 @@ const SimulationRun = () => {
     await fetchSimulationResults(fetchedActualFue);
   };
 
-  const handleViewDetails = (simulation) => {
+   const handleViewDetails = (simulation) => {
     if (simulation.status === "In Progress" || simulation.status === "Processing Changes") {
       toast({
         title: "Simulation In Progress",
-        description: "Please wait for the simulation to complete before viewing details.",
+        description: `Simulation ${simulation.simulation_run_id} is still being processed. Please wait for completion before viewing details.`,
         variant: "default",
-        duration: 900,
+        duration: 1200,
+      });
+      return;
+    }
+    
+    if (simulation.status === "Failed") {
+      toast({
+        title: "Simulation Failed",
+        description: "This simulation encountered an error. Please try creating a new simulation.",
+        variant: "destructive",
+        duration: 1500,
       });
       return;
     }
@@ -382,12 +461,6 @@ const SimulationRun = () => {
             )}
           </CardContent>
         </Card>
-
-        {simulations.length === 0 && !loading && (
-          <div className="text-center py-8 text-gray-500">
-            {selectedClient && selectedSystem ? "No simulation results found" : "Please enter client and system name to load simulation results"}
-          </div>
-        )}
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {simulations.map((simulation) => (

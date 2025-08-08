@@ -111,33 +111,7 @@ const RoleOptimization = () => {
     value: license.id,
     label: license.name,
   }));
-  
-
-  // const createRequestMutation = useMutation({
-  //   mutationFn: createOptimizationRequest,
-  //   onMutate: () => {
-  //     toast({
-  //       title: "Request Initiated",
-  //       description: "Your role optimization analysis request is being submitted.",
-  //     });
-  //   },
-  //   onSuccess: (data) => {
-  //     toast({
-  //       title: "Analysis Completed",
-  //       description: "Your role optimization analysis request has been succesfully completed.",
-  //     });
-  //     queryClient.invalidateQueries({ queryKey: ['roleOptimizationRequests'] });
-  //     console.log("Optimization Analysis response data:", data);
-  //   },
-  //   onError: (error: Error) => {
-  //     console.error("Error creating optimization request:", error);
-  //     toast({
-  //       title: "Error",
-  //       description: error.message || "Failed to create optimization request. Please try again.",
-  //       variant: "destructive",
-  //     });
-  //   }
-  // });
+ 
 
 const createRequestMutation = useMutation({
   mutationFn: createOptimizationRequest,
