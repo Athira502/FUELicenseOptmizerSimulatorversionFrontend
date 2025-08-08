@@ -114,19 +114,35 @@ export const createOptimizationRequestAPI = async (
   }
 };
 
+
+
 export const getAllOptimizationRequestsAPI = async (): Promise<OptimizationRequest[]> => {
   try {
-    const response = await axios.get<OptimizationRequest[]>(`${API_BASE_URL}/optimize/requests`);
+    const response = await axios.get<OptimizationRequest[]>(`${API_BASE_URL}/optimize/requests`, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
   
     return response.data.map(req => ({
         ...req, 
     }));
-  } catch (error) {
-    console.error('Error fetching all optimization requests:', error);
+  } catch (error: any) {
+    if (error.response) {
+      // The request was made and the server responded with a status code
+      console.error('Error response:', error.response.data);
+      console.error('Error status:', error.response.status);
+      console.error('Error headers:', error.response.headers);
+    } else if (error.request) {
+      // The request was made but no response was received
+      console.error('Error request:', error.request);
+    } else {
+      // Something happened in setting up the request
+      console.error('Error message:', error.message);
+    }
     throw error;
   }
 };
-
 
 export const getOptimizationResultsByRequestIdAPI = async (
     reqId: string | number

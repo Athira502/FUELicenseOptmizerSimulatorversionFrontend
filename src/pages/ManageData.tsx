@@ -39,7 +39,7 @@ const ManageData = () => {
         const clients = await fetchClients();
         setClientsList(clients);
       } catch (error: any) {
-        toast({ title: "Error", description: error.message, variant: "destructive" });
+        toast({ title: "Error", description: error.message, variant: "destructive",duration: 900, });
       }
     };
 
@@ -73,6 +73,7 @@ const ManageData = () => {
         title: "Selection Required",
         description: "Please select both a Client and a System ID",
         variant: "destructive",
+        duration: 900,
       });
       return;
     }
@@ -84,6 +85,7 @@ const ManageData = () => {
         toast({
           title: "Search Complete",
           description: `Found ${tables.length} data sources for ${selectedClient} - ${selectedSystem}`,
+          duration: 900,
         });
       }
       else{
@@ -91,11 +93,12 @@ const ManageData = () => {
         toast({
           title: "Search Complete",
           description: `No data sources found for ${selectedClient} - ${selectedSystem}`,
+          duration: 900,
         });
       }
       
     } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: "Error", description: error.message, variant: "destructive" ,duration: 900,});
       setAvailableTables(null);
     }
   };
@@ -106,6 +109,7 @@ const ManageData = () => {
         title: "Selection Required",
         description: "Please select both a Client and a System ID",
         variant: "destructive",
+        duration: 900,
       });
       return;
     }
@@ -114,14 +118,16 @@ const ManageData = () => {
       toast({
         title: "Download Started",
         description: `Downloading ${tableName} for ${selectedClient} - ${selectedSystem}`,
+        duration: 900,
       });
       await downloadTableData(selectedClient, selectedSystem, tableName);
       toast({
         title: "Download Complete",
         description: `Download of ${tableName} for ${selectedClient} - ${selectedSystem} finished.`,
+        duration: 900,
       });
     } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: "Error", description: error.message, variant: "destructive",duration: 900, });
     }
   };
 
@@ -131,6 +137,7 @@ const ManageData = () => {
         title: "Selection Required",
         description: "Please select both a Client and a System ID",
         variant: "destructive",
+        duration: 900,
       });
       return;
     }
@@ -141,12 +148,12 @@ const ManageData = () => {
         const response = await truncateTableData(selectedClient, selectedSystem, tableName);
         toast({
           title: "Delete Successful",
-          description: response.message || `Data in ${tableName} for ${selectedClient} - ${selectedSystem} has been deleted.`,
+          description: response.message || `Data in ${tableName} for ${selectedClient} - ${selectedSystem} has been deleted.`,duration: 900,
         });
         // Optionally, refresh the table list after deletion
         handleSearch();
       } catch (error: any) {
-        toast({ title: "Error", description: error.message, variant: "destructive" });
+        toast({ title: "Error", description: error.message, variant: "destructive",duration: 900, });
       }
     }
   };

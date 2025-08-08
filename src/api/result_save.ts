@@ -90,6 +90,7 @@ export interface SimulationResult {
   simulation_run_id: string;
   timestamp: string;
   fue_required: string;
+  status: "In Progress" | "Processing Changes" | "Completed" | "Failed";
   changes: SimulationChange[];
   summary?: {
     total_fue: string;
@@ -139,5 +140,4 @@ export interface SimulationRunResponse {
   system_name: string;
   cleanup_completed: boolean;
 }
-
 

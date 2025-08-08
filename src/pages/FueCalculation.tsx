@@ -43,7 +43,7 @@ const FueCalculation = () => {
         const clients = await fetchClients();
         setClientsList(clients);
       } catch (error: any) {
-        toast({ title: "Error", description: error.message, variant: "destructive" });
+        toast({ title: "Error", description: error.message, variant: "destructive",duration: 900, });
       }
     };
 
@@ -58,7 +58,7 @@ const FueCalculation = () => {
           setSystemsList(systems);
           setSelectedSystem(""); 
         } catch (error: any) {
-          toast({ title: "Error", description: error.message, variant: "destructive" });
+          toast({ title: "Error", description: error.message, variant: "destructive",duration: 900, });
         }
       } else {
         setSystemsList([]);
@@ -75,6 +75,7 @@ const FueCalculation = () => {
         title: "Missing Parameters",
         description: "Please provide both client name and system name.",
         variant: "destructive",
+        duration: 900,
       });
       return;
     }
@@ -94,6 +95,7 @@ const FueCalculation = () => {
           title: "No Data Found",
           description: `No data found for client "${selectedClient}" and system "${selectedSystem}".`,
           variant: "destructive",
+          duration: 900,
         });
       } else {
         setHasNoData(false);
@@ -101,6 +103,7 @@ const FueCalculation = () => {
           title: "Success",
           description: "FUE data loaded successfully.",
           variant: "default",
+          duration: 900,
         });
       }
     } catch (error) {
@@ -117,6 +120,7 @@ const FueCalculation = () => {
         title: "Error",
         description: "No Data found",
         variant: "destructive",
+        duration: 900,
       });
     } finally {
       setIsLoading(false);
@@ -142,6 +146,7 @@ const FueCalculation = () => {
           title: "No Role Data Found",
           description: `No role details found for client "${selectedClient}" and system "${selectedSystem}".`,
           variant: "destructive",
+          duration: 900,
         });
       } else {
         setHasNoRoleData(false);
@@ -161,6 +166,7 @@ const FueCalculation = () => {
         title: "Error",
         description: "Failed to load role details",
         variant: "destructive",
+        duration: 900,
       });
       setRoleDetails([]);
     } finally {

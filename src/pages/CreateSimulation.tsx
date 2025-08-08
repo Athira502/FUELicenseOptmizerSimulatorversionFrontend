@@ -177,7 +177,7 @@ useEffect(() => {
         const clients = await fetchClients();
         setClientsList(clients);
       } catch (error: any) {
-        toast({ title: "Error", description: error.message, variant: "destructive" });
+        toast({ title: "Error", description: error.message, variant: "destructive",duration: 900, });
       }
     };
 
@@ -193,7 +193,7 @@ useEffect(() => {
           setSystemsList(systems);
           setSelectedSystem(""); // Reset system when client changes
         } catch (error: any) {
-          toast({ title: "Error", description: error.message, variant: "destructive" });
+          toast({ title: "Error", description: error.message, variant: "destructive",duration: 900, });
         }
       } else {
         setSystemsList([]);
@@ -281,6 +281,7 @@ useEffect(() => {
         description: "Please enter both client name and system name.", 
 
         variant: "destructive", 
+        duration: 900,
 
       }); 
 
@@ -345,6 +346,7 @@ useEffect(() => {
         title: "Success", 
 
         description: `Loaded ${transformedRoles.length} roles successfully.`, 
+        duration: 900,
 
       }); 
 
@@ -359,6 +361,7 @@ useEffect(() => {
         description: "Failed to fetch roles. Please check your client and system names.", 
 
         variant: "destructive", 
+        duration: 900,
 
       }); 
 
@@ -427,6 +430,7 @@ useEffect(() => {
         description: "Please enter both client name and system name.", 
 
         variant: "destructive", 
+        duration: 900,
 
       }); 
 
@@ -515,6 +519,7 @@ useEffect(() => {
             title: "Unsaved Changes Loaded", 
 
             description: "Previous unsaved changes for this role have been loaded.", 
+            duration: 900,
 
         }); 
 
@@ -543,6 +548,7 @@ useEffect(() => {
         description: "Failed to fetch role details. Please try again.", 
 
         variant: "destructive", 
+        duration: 900,
 
       }); 
 
@@ -573,6 +579,7 @@ useEffect(() => {
       description: "Cannot fetch suggestions: Client or System Name is missing.", 
 
       variant: "destructive", 
+      duration: 900,
 
     }); 
 
@@ -643,6 +650,7 @@ useEffect(() => {
       description: `Failed to fetch suggestions for ${authorizationObject}/${fieldName}.`, 
 
       variant: "destructive", 
+      duration: 900,
 
     }); 
 
@@ -656,89 +664,6 @@ useEffect(() => {
 
 }; 
 
- 
-
- 
-
-const handleCreateSimulationTable = async () => { 
-
-  if (!selectedClient.trim() || !selectedSystem.trim() || !systemReleaseInfo.trim()) { 
-
-    toast({ 
-
-      title: "Missing Information", 
-
-      description: "Please enter client name, system name, and system release info.", 
-
-      variant: "destructive", 
-
-    }); 
-
-    return; 
-
-  } 
-
- 
-
-  setIsCreatingTable(true); 
-
-  try { 
-
-    const result = await createSimulationTable( 
-
-      selectedClient.trim(),  
-
-      selectedSystem.trim(), 
-
-      systemReleaseInfo.trim() 
-
-    ); 
-
- 
-
-    toast({ 
-
-      title: "Simulation Table Created", 
-
-      description: result.message, 
-
-      variant: "default", 
-
-    }); 
-
- 
-
-
-    await fetchRoles(); 
-
-     
-
-  } catch (err) { 
-
-    setError(err instanceof Error ? err.message : 'Failed to create simulation table'); 
-
-    toast({ 
-
-      title: "Error", 
-
-      description: "Failed to create simulation table. Please try again.", 
-
-      variant: "destructive", 
-
-    }); 
-
-  } finally { 
-
-    setIsCreatingTable(false); 
-
-  } 
-
-}; 
-
- 
-
- 
-
  const fetchDynamicLicenseOptions = async (objId: number, authorizationObject: string, fieldName: string) => { 
 
   if (!selectedClient.trim() || !selectedSystem.trim()) { 
@@ -750,6 +675,7 @@ const handleCreateSimulationTable = async () => {
       description: "Cannot fetch new values: Client or System Name is missing.", 
 
       variant: "destructive", 
+      duration: 900,
 
     }); 
 
@@ -807,7 +733,8 @@ const handleCreateSimulationTable = async () => {
 
       description: `Failed to fetch new values for ${authorizationObject}/${fieldName}.`, 
 
-      variant: "destructive", 
+      variant: "destructive",
+      duration: 900, 
 
     }); 
 
@@ -848,6 +775,7 @@ const updateObjectAction = (objectId: number, action: string) => {
               description: "Cannot fetch new values: Authorization Object or Field Name is missing for this row.", 
 
               variant: "destructive", 
+              duration: 900,
 
             }); 
 
@@ -1112,7 +1040,8 @@ const handleAddObject = () => {
 
             description: `Changes for role '${selectedRole.id}' have been saved to your browser. Click "Run Simulation" to apply to database.`, 
 
-            variant: "default", 
+            variant: "default",
+            duration: 1000, 
 
         }); 
 
@@ -1156,7 +1085,8 @@ const handleAddObject = () => {
 
         description: "All unsaved changes for this role have been discarded.", 
 
-        variant: "default", 
+        variant: "default",
+        duration: 900, 
 
       }); 
 
@@ -1218,12 +1148,14 @@ const handleAddObject = () => {
 
   }; 
 
- const handleRunSimulation = async () => {
+
+const handleRunSimulation = async () => {
   if (!selectedClient.trim() || !selectedSystem.trim()) {
     toast({
       title: "Missing Information",
       description: "Please enter both client name and system name.",
       variant: "destructive",
+      duration: 900,
     });
     return;
   }
@@ -1240,10 +1172,12 @@ const handleAddObject = () => {
         title: "No Changes to Simulate",
         description: "No pending changes found to apply to the database.",
         variant: "default",
+        duration: 900,
       });
       return;
     }
 
+    // Prepare changes payload
     for (const roleId of rolesWithChanges) {
       const roleChanges = allEditedObjects[roleId];
 
@@ -1272,10 +1206,12 @@ const handleAddObject = () => {
         title: "No Valid Changes",
         description: "No valid changes found to apply to the database. Please ensure you have selected actions for your changes.",
         variant: "default",
+        duration: 1000,
       });
       return;
     }
 
+    // Validate changes
     const validationErrors = validateSimulationChanges(allChangesToSend);
     if (validationErrors.length > 0) {
       setError(`Validation errors: ${validationErrors.join('; ')}`);
@@ -1283,6 +1219,7 @@ const handleAddObject = () => {
         title: "Validation Error",
         description: "Please fix the validation errors before running the simulation.",
         variant: "destructive",
+        duration: 900,
       });
       return;
     }
@@ -1298,24 +1235,22 @@ const handleAddObject = () => {
 
     console.log(`About to send ${allChangesToSend.length} changes: ${summaryText}`);
 
-    // Step 1: Send changes to backend
+    // Call the unified API endpoint
     const response = await applySimulationChangesToDb(selectedClient.trim(), selectedSystem.trim(), allChangesToSend);
     console.log("Backend response:", response);
 
-    // Step 2: Run the simulation after changes are applied
+    // Get the simulation ID from response
+    const requestNumber = response.simulation_run_id || generateRequestNumber();
+
+    // Show immediate success message with simulation ID
     toast({
-      title: "Changes Applied",
-      description: "Changes applied successfully. Running simulation...",
+      title: "Simulation Started",
+      description: `Simulation ${requestNumber} initiated successfully. ${summaryText}. Processing in background...`,
       variant: "default",
+      duration: 1200,
     });
 
-    const simulationResult = await runSimulation(selectedClient.trim(), selectedSystem.trim());
-    console.log("Simulation result:", simulationResult);
-
-    // Generate request number for tracking
-    const requestNumber = generateRequestNumber();
-
-    // Clear all localStorage after successful completion
+    // Clear all localStorage after successful initiation
     localStorage.removeItem(getAllRolesLocalStorageKey(selectedClient.trim(), selectedSystem.trim()));
     setAllEditedObjects({});
 
@@ -1326,16 +1261,8 @@ const handleAddObject = () => {
       setSavedChanges(false);
     }
 
-    toast({
-      title: "Simulation Completed Successfully",
-      description: `Changes applied and simulation completed. ${summaryText}. Request: ${requestNumber}`,
-      variant: "default",
-    });
-
-    // Navigate after a short delay
-    setTimeout(() => {
-      navigate("/simulation-run");
-    }, 2000);
+    
+    navigate(`/simulation-run?client=${encodeURIComponent(selectedClient.trim())}&system=${encodeURIComponent(selectedSystem.trim())}&highlight=${requestNumber}&refresh=true`);
 
   } catch (err) {
     console.error("Error running simulation:", err);
@@ -1343,13 +1270,15 @@ const handleAddObject = () => {
     setError(errorMessage);
     toast({
       title: "Error Running Simulation",
-      description: `Failed to apply changes or run simulation: ${errorMessage}`,
+      description: `Failed to start simulation: ${errorMessage}`,
       variant: "destructive",
+      duration: 1400,
     });
   } finally {
     setSimulationRunning(false);
   }
 };
+
 
   const handleKeyPress = (e: React.KeyboardEvent) => { 
 
@@ -1624,31 +1553,8 @@ const handleAddObject = () => {
        
 {selectedRole && (
   <>
- 
-    {/* <FilterObjects
-      searchTerm={objectSearchTerm}
-      setSearchTerm={setObjectSearchTerm}
-    /> */}
-    
-    {/* <AuthorizationObjects 
-      selectedRole={selectedRole} 
-      editedObjects={currentEditedObjects} 
-      objectSearchTerm={objectSearchTerm} 
-      isEditing={isEditing} 
-      onEditClick={handleEditClick} 
-      onSave={handleSave} 
-      onReset={handleReset} 
-      onAddObject={handleAddObject} 
-      updateObjectAction={updateObjectAction} 
-      updateObjectNewValue={updateObjectNewValue} 
-      updateObjectField={updateObjectField} 
-      isLoadingDynamicOptions={loadingDynamicOptions}
-      
-      fetchDynamicLicenseOptions={function (objId: number, authorizationObject: string, fieldName: string): void { 
-        throw new Error("Function not implemented."); 
-      }} 
-    /> */}
-     <AuthorizationObjects
+
+    <AuthorizationObjects
     selectedRole={selectedRole}
     editedObjects={currentEditedObjects}
     isEditing={isEditing}

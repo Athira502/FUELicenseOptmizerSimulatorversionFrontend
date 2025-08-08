@@ -49,6 +49,7 @@ const FileUploadRow: React.FC<FileUploadRowProps> = ({
         title: "Invalid File",
         description: `Please upload a file with one of these extensions: ${allowedExtensions.join(", ")}`,
         variant: "destructive",
+        duration: 900,
       });
       e.target.value = "";
       setFile(null);
@@ -66,6 +67,7 @@ const FileUploadRow: React.FC<FileUploadRowProps> = ({
         title: "Missing Information",
         description: "Please enter a Client Name",
         variant: "destructive",
+        duration: 900,
       });
       return;
     }
@@ -75,6 +77,7 @@ const FileUploadRow: React.FC<FileUploadRowProps> = ({
         title: "Missing Information",
         description: "Please enter a System SID",
         variant: "destructive",
+        duration: 900,
       });
       return;
     }
@@ -84,6 +87,7 @@ const FileUploadRow: React.FC<FileUploadRowProps> = ({
         title: "Missing Information",
         description: "Please enter System Release Info",
         variant: "destructive",
+        duration: 900,
       });
       return;
     }
@@ -93,6 +97,7 @@ const FileUploadRow: React.FC<FileUploadRowProps> = ({
         title: "No File Selected",
         description: "Please select a file to upload",
         variant: "destructive",
+        duration: 900,
       });
       return;
     }
@@ -101,6 +106,7 @@ const FileUploadRow: React.FC<FileUploadRowProps> = ({
     toast({
       title: "Upload Started",
       description: `Uploading ${file.name} for ${clientName} - ${systemId}...`,
+      duration: 900,
     });
 
     try {
@@ -270,6 +276,7 @@ const handleFileUpload = async (
         title: "Unsupported Upload Type",
         description: `No API endpoint configured for ${title}`,
         variant: "destructive",
+        duration: 900,
       });
       return;
     }
@@ -278,12 +285,14 @@ const handleFileUpload = async (
     toast({
       title: "Upload Complete",
       description: responseData?.message || "File uploaded successfully!",
+      duration: 1000,
     });
   } catch (error: any) {
     toast({
       title: "Upload Failed",
       description: error?.message || "An error occurred during upload.",
       variant: "destructive",
+      duration: 900,
     });
   }
 };

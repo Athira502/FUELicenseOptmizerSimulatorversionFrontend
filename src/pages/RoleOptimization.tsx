@@ -62,7 +62,7 @@ const RoleOptimization = () => {
         const clients = await fetchClients();
         setClientsList(clients);
       } catch (error: any) {
-        toast({ title: "Error", description: error.message, variant: "destructive" });
+        toast({ title: "Error", description: error.message, variant: "destructive",duration: 900,});
       }
     };
 
@@ -78,7 +78,7 @@ const RoleOptimization = () => {
           setSystemsList(systems);
           setSelectedSystem(""); // Reset system when client changes
         } catch (error: any) {
-          toast({ title: "Error", description: error.message, variant: "destructive" });
+          toast({ title: "Error", description: error.message, variant: "destructive",duration: 900, });
         }
       } else {
         setSystemsList([]);
@@ -111,26 +111,56 @@ const RoleOptimization = () => {
     value: license.id,
     label: license.name,
   }));
+  
 
-  const createRequestMutation = useMutation({
-    mutationFn: createOptimizationRequest,
-    onSuccess: (data) => {
-      toast({
-        title: "Analysis Submitted",
-        description: "Your role optimization analysis request has been submitted and processing started.",
-      });
-      queryClient.invalidateQueries({ queryKey: ['roleOptimizationRequests'] });
-      console.log("Optimization Analysis response data:", data);
-    },
-    onError: (error: Error) => {
-      console.error("Error creating optimization request:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to create optimization request. Please try again.",
-        variant: "destructive",
-      });
-    }
-  });
+  // const createRequestMutation = useMutation({
+  //   mutationFn: createOptimizationRequest,
+  //   onMutate: () => {
+  //     toast({
+  //       title: "Request Initiated",
+  //       description: "Your role optimization analysis request is being submitted.",
+  //     });
+  //   },
+  //   onSuccess: (data) => {
+  //     toast({
+  //       title: "Analysis Completed",
+  //       description: "Your role optimization analysis request has been succesfully completed.",
+  //     });
+  //     queryClient.invalidateQueries({ queryKey: ['roleOptimizationRequests'] });
+  //     console.log("Optimization Analysis response data:", data);
+  //   },
+  //   onError: (error: Error) => {
+  //     console.error("Error creating optimization request:", error);
+  //     toast({
+  //       title: "Error",
+  //       description: error.message || "Failed to create optimization request. Please try again.",
+  //       variant: "destructive",
+  //     });
+  //   }
+  // });
+
+const createRequestMutation = useMutation({
+  mutationFn: createOptimizationRequest,
+  onSuccess: (data) => {
+    toast({
+      title: "Request Initiated",
+      description: `Optimization request ${data.request_id} has been started and is processing in the background.`,duration: 1000,
+    });
+    // Immediately refresh to show the new IN_PROGRESS request
+    queryClient.invalidateQueries({ queryKey: ['roleOptimizationRequests'] });
+    console.log("Optimization request initiated:", data);
+  },
+  onError: (error: Error) => {
+    console.error("Error creating optimization request:", error);
+    toast({
+      title: "Error",
+      description: error.message || "Failed to create optimization request. Please try again.",
+      variant: "destructive",
+      duration: 900,
+    });
+  }
+});
+
 
   const handleAnalyze = () => {
     if (!selectedClient || !selectedSystem) {
@@ -138,6 +168,7 @@ const RoleOptimization = () => {
         title: "Missing Information",
         description: "Client Name and System SID are required.",
         variant: "destructive",
+        duration: 900,
       });
       return;
     }
@@ -172,11 +203,16 @@ const RoleOptimization = () => {
         title: "Invalid Input",
         description: "Ratio Threshold must be a valid number.",
         variant: "destructive",
+        duration: 900,
       });
       return;
     }
 
     createRequestMutation.mutate(payload);
+
+     setTimeout(() => {
+    queryClient.invalidateQueries({ queryKey: ['roleOptimizationRequests'] });
+  }, 1000);
   };
 
   const handleClear = () => {
@@ -334,17 +370,25 @@ const RoleOptimization = () => {
 </Collapsible>
 
         </Card>
-
         <div>
-          <h3 className="text-lg font-medium mb-4">Optimization Requests</h3>
-          {isLoadingRequests ? (
-            <div className="flex justify-center items-center p-12">
-              <Loader2 className="h-8 w-8 animate-spin text-belize-600" />
-            </div>
-          ) : (
-            <OptimizationRequestsTable requests={requests} requestType="role" />
-          )}
+      {/* This new container uses flexbox to align the heading and button */}
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-medium">Optimization Requests</h3>
+        <Button variant="outline" onClick={() => refetchRequests()}>
+          Refresh
+        </Button>
+      </div>
+      
+      {isLoadingRequests ? (
+        <div className="flex justify-center items-center p-12">
+          <Loader2 className="h-8 w-8 animate-spin text-belize-600" />
         </div>
+      ) : (
+        <OptimizationRequestsTable requests={requests} requestType="role" />
+      )}
+    </div>
+ 
+      
       </div>
     </Layout>
   );

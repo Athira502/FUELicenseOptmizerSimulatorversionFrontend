@@ -194,6 +194,7 @@ const RoleDetails = () => {
           title: "Success",
           description: `Details for role '${decodeURIComponent(roleId)}' loaded.`,
           variant: "default",
+          duration: 900,
         });
       } catch (err) {
         console.error("❌ Error fetching role details:", err);
@@ -203,6 +204,7 @@ const RoleDetails = () => {
           title: "Error",
           description: `Failed to load role details for '${decodeURIComponent(roleId)}'. ${errorMessage}`,
           variant: "destructive",
+          duration: 900,
         });
       } finally {
         setIsLoading(false);

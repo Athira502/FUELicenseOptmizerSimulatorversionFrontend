@@ -246,21 +246,58 @@ export interface SimulationChangePayload {
   frontend_id: number; // Frontend's temporary ID for tracking
 }
 
+
+export interface ApplySimulationResponse {
+  simulation_run_id: string;
+  status: "In Progress" | "Processing Changes" | "Completed" | "Failed";
+  timestamp: string;
+  client_name: string;
+  system_name: string;
+}
+
+// Update the existing interface to match your backend response
 export const applySimulationChangesToDb = async (
   clientName: string,
   systemName: string,
   changes: SimulationChangePayload[]
-): Promise<any> => {
+): Promise<ApplySimulationResponse> => {
   try {
-    const response = await axios.post(`${API_BASE_URL}/simulator/apply-simulation-changes/`, changes, {
-      params: { client_name: clientName, system_name: systemName }
-    });
+    const response = await axios.post(
+      `${API_BASE_URL}/simulator/apply-simulation-changes/`,
+      changes,
+      {
+        params: { 
+          client_name: clientName, 
+          system_name: systemName 
+        }
+      }
+    );
     return response.data;
   } catch (error) {
     console.error("Error applying simulation changes to DB:", error);
+    if (axios.isAxiosError(error) && error.response?.status === 500) {
+      throw new Error("Simulation initialization failed. Please try again.");
+    }
     throw error;
   }
 };
+
+// export const applySimulationChangesToDb = async (
+//   clientName: string,
+//   systemName: string,
+//   changes: SimulationChangePayload[]
+// ): Promise<any> => {
+//   try {
+//     const response = await axios.post(`${API_BASE_URL}/simulator/apply-simulation-changes/`, changes, {
+//       params: { client_name: clientName, system_name: systemName }
+//     });
+//     return response.data;
+//   } catch (error) {
+//     console.error("Error applying simulation changes to DB:", error);
+//     throw error;
+//   }
+// };
+
 
 export const getLicenseClassificationPivotTableforSim = async (
   clientName: string,

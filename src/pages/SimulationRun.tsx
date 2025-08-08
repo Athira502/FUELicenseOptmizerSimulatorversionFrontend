@@ -1,9 +1,9 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Plus, Calendar, TrendingUp, TrendingDown, Search, Loader2, AlertCircle } from "lucide-react";
+import { Plus, Calendar, TrendingUp, TrendingDown, Search, Loader2, AlertCircle, RefreshCw } from "lucide-react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import Layout from "@/components/Layout";
 import {
@@ -20,6 +20,7 @@ import {
 
 import { getSimulationResults } from "../api/result_save";
 import { getLicenseClassificationPivotTable } from '../api/simulation_api'
+import { toast } from "@/components/ui/use-toast";
 
 const SimulationRun = () => {
   const [clientsList, setClientsList] = useState<string[]>([]);
@@ -31,9 +32,37 @@ const SimulationRun = () => {
   const [error, setError] = useState("");
   const [actualFue, setActualFue] = useState(null);
   const [actualFueLoading, setActualFueLoading] = useState(false);
+  const [highlightedSimulation, setHighlightedSimulation] = useState<string | null>(null);
+  const [autoRefresh, setAutoRefresh] = useState(false);
+  const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Auto-refresh functionality for in-progress simulations
+  useEffect(() => {
+    if (autoRefresh && selectedClient && selectedSystem) {
+      refreshIntervalRef.current = setInterval(async () => {
+        const fetchedActualFue = await fetchActualFue();
+        await fetchSimulationResults(fetchedActualFue, false); // Silent refresh
+      }, 5000); // Refresh every 5 seconds
+
+      return () => {
+        if (refreshIntervalRef.current) {
+          clearInterval(refreshIntervalRef.current);
+          refreshIntervalRef.current = null;
+        }
+      };
+    }
+  }, [autoRefresh, selectedClient, selectedSystem]);
+
+  // Check if there are in-progress simulations to enable auto-refresh
+  useEffect(() => {
+    const hasInProgressSimulations = simulations.some(sim => 
+      sim.status === "In Progress" || sim.status === "Processing Changes"
+    );
+    setAutoRefresh(hasInProgressSimulations);
+  }, [simulations]);
 
   useEffect(() => {
     const loadClients = async () => {
@@ -88,6 +117,18 @@ const SimulationRun = () => {
     loadSystems();
   }, [selectedClient, location.search]);
 
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const highlight = params.get('highlight');
+    if (highlight) {
+      setHighlightedSimulation(highlight);
+      // Clear highlight after 5 seconds
+      setTimeout(() => setHighlightedSimulation(null), 5000);
+    }
+  }, [location.search]);
+
+ 
+
   const fetchActualFue = async () => {
     if (!selectedClient || !selectedSystem) return null;
 
@@ -97,7 +138,7 @@ const SimulationRun = () => {
       const data = await getLicenseClassificationPivotTable(selectedClient, selectedSystem);
       const totalFue = data.fue_summary["Total FUE Required"];
       setActualFue(totalFue);
-      return totalFue; // Return the fetched value
+      return totalFue;
     } catch (err) {
       console.error("Error fetching actual FUE:", err);
       return null;
@@ -106,13 +147,13 @@ const SimulationRun = () => {
     }
   };
 
-  const fetchSimulationResults = async (currentActualFue = null) => {
+  const fetchSimulationResults = async (currentActualFue = null, showLoading = true) => {
     if (!selectedClient || !selectedSystem) {
       setError("Please enter both client name and system name");
       return;
     }
 
-    setLoading(true);
+    if (showLoading) setLoading(true);
     setError("");
 
     try {
@@ -134,34 +175,44 @@ const SimulationRun = () => {
           date = new Date();
         }
 
-        // Use the passed actualFue value, or fall back to the state value, or default
         const actualFueValue = currentActualFue || actualFue || (result.simulation_results?.fue_summary?.["Total FUE Required"]) || 306;
         const simulationFue = typeof result.fue_required === 'string' ? parseFloat(result.fue_required) : result.fue_required || 0;
 
+        // Determine status based on backend response
+        let status = result.status || "Completed";
+        if (status === "In Progress" || status === "Processing Changes") {
+          status = result.status;
+        }
+
         return {
           id: `${selectedClient}-${selectedSystem}-${result.simulation_run_id}`,
-                    name: result.simulation_run_id,
-
+          name: result.simulation_run_id,
           date: date.toISOString().split('T')[0],
           time: date.toTimeString().split(' ')[0].substring(0, 5),
           simulationFue: simulationFue,
           actualFue: actualFueValue,
           savings: actualFueValue - simulationFue,
-          status: "Completed",
+          status: status,
           timestamp: result.timestamp,
           changes: result.changes,
           summary: result.summary,
           simulationResults: result.simulation_results,
-          simulation_run_id: result.simulation_run_id 
+          simulation_run_id: result.simulation_run_id,
+          roleDescription: result.role_description || "Simulation processing..."
         };
       });
+
+      // Sort by timestamp, newest first
+      transformedSimulations.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
       setSimulations(transformedSimulations);
     } catch (err) {
       console.error("Error fetching simulation results:", err);
-      setError(`Error fetching simulation results: ${err.message}`);
+      if (showLoading) {
+        setError(`Error fetching simulation results: ${err.message}`);
+      }
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   };
 
@@ -169,9 +220,7 @@ const SimulationRun = () => {
   useEffect(() => {
     const loadData = async () => {
       if (selectedClient && selectedSystem) {
-        // First fetch actual FUE and wait for it
         const fetchedActualFue = await fetchActualFue();
-        // Then fetch simulation results with the correct actualFue value
         await fetchSimulationResults(fetchedActualFue);
       } else {
         setSimulations([]);
@@ -184,28 +233,39 @@ const SimulationRun = () => {
   }, [selectedClient, selectedSystem]);
 
   const handleSearch = async () => {
-    // For manual search, also ensure proper sequencing
     const fetchedActualFue = await fetchActualFue();
     await fetchSimulationResults(fetchedActualFue);
   };
+
   const handleViewDetails = (simulation) => {
-  navigate(
-    `/simulation-details/${encodeURIComponent(selectedClient)}/${encodeURIComponent(selectedSystem)}/${encodeURIComponent(simulation.simulation_run_id)}`,
-    { 
-      state: { 
-        actualFue: actualFue,
-        simulationData: simulation 
-      } 
+    if (simulation.status === "In Progress" || simulation.status === "Processing Changes") {
+      toast({
+        title: "Simulation In Progress",
+        description: "Please wait for the simulation to complete before viewing details.",
+        variant: "default",
+        duration: 900,
+      });
+      return;
     }
-  );
-};
+
+    navigate(
+      `/simulation-details/${encodeURIComponent(selectedClient)}/${encodeURIComponent(selectedSystem)}/${encodeURIComponent(simulation.simulation_run_id)}`,
+      { 
+        state: { 
+          actualFue: actualFue,
+          simulationData: simulation 
+        } 
+      }
+    );
+  };
   
   const getStatusColor = (status) => {
     switch (status) {
       case "Completed":
         return "bg-green-100 text-green-800";
-      case "Running":
-        return "bg-yellow-100 text-yellow-800";
+      case "In Progress":
+      case "Processing Changes":
+        return "bg-blue-100 text-blue-800";
       case "Failed":
         return "bg-red-100 text-red-800";
       default:
@@ -213,19 +273,29 @@ const SimulationRun = () => {
     }
   };
 
-useEffect(() => {
-  if (error) {
-    const timer = setTimeout(() => {
-      setError("");
-    }, 10); // ⏱️ Auto-clear after 4 seconds
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case "In Progress":
+      case "Processing Changes":
+        return <Loader2 className="h-3 w-3 animate-spin mr-1" />;
+      default:
+        return null;
+    }
+  };
 
-    return () => clearTimeout(timer); // 🧹 Cleanup on re-render
-  }
-}, [error]);
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => {
+        setError("");
+      }, 10000);
 
-useEffect(() => {
-  setError(""); // Clear error when navigating away or returning
-}, [location.pathname]);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
+
+  useEffect(() => {
+    setError("");
+  }, [location.pathname]);
 
   return (
     <Layout title="Simulation Run">
@@ -233,7 +303,15 @@ useEffect(() => {
         <Card>
           <CardHeader>
             <div className="flex justify-between items-center w-full">
-              <CardTitle>System Configuration</CardTitle>
+              <div className="flex items-center gap-4">
+                <CardTitle>System Configuration</CardTitle>
+                {autoRefresh && (
+                  <div className="flex items-center text-sm text-blue-600">
+                    <RefreshCw className="h-4 w-4 animate-spin mr-2" />
+                    Auto-refreshing...
+                  </div>
+                )}
+              </div>
               <Link to="/create-simulation" className="flex items-center text-blue-600 hover:text-blue-800">
                 <Button className="flex items-center gap-2">
                   <Plus className="h-4 w-4" />
@@ -313,11 +391,17 @@ useEffect(() => {
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {simulations.map((simulation) => (
-            <Card key={simulation.id} className="hover:shadow-lg transition-shadow cursor-pointer">
+            <Card 
+              key={simulation.id} 
+              className={`hover:shadow-lg transition-shadow cursor-pointer ${
+                highlightedSimulation === simulation.simulation_run_id ? 'ring-2 ring-blue-500 shadow-lg' : ''
+              }`}
+            >
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-lg">{simulation.name}</CardTitle>
-                  <span className={`px-2 py-1 rounded-full text-xs ${getStatusColor(simulation.status)}`}>
+                  <span className={`px-2 py-1 rounded-full text-xs flex items-center ${getStatusColor(simulation.status)}`}>
+                    {getStatusIcon(simulation.status)}
                     {simulation.status}
                   </span>
                 </div>
@@ -325,12 +409,23 @@ useEffect(() => {
                   <Calendar className="h-4 w-4 mr-1" />
                   {simulation.date} at {simulation.time}
                 </div>
+                {(simulation.status === "In Progress" || simulation.status === "Processing Changes") && (
+                  <div className="text-xs text-blue-600 mt-1">
+                    {simulation.roleDescription}
+                  </div>
+                )}
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600">Simulation FUE:</span>
-                    <span className="font-medium">{simulation.simulationFue}</span>
+                    <span className="font-medium">
+                      {simulation.status === "In Progress" || simulation.status === "Processing Changes" ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        simulation.simulationFue
+                      )}
+                    </span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600">Actual FUE:</span>
@@ -345,7 +440,9 @@ useEffect(() => {
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600">Potential Savings:</span>
                     <div className="flex items-center gap-1">
-                      {simulation.savings > 0 ? (
+                      {simulation.status === "In Progress" || simulation.status === "Processing Changes" ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : simulation.savings > 0 ? (
                         <>
                           <TrendingDown className="h-4 w-4 text-green-600" />
                           <span className="font-medium text-green-600">
@@ -368,8 +465,11 @@ useEffect(() => {
                     variant="outline"
                     className="w-full"
                     onClick={() => handleViewDetails(simulation)}
+                    disabled={simulation.status === "In Progress" || simulation.status === "Processing Changes"}
                   >
-                    View Details
+                    {simulation.status === "In Progress" || simulation.status === "Processing Changes" ? 
+                      "Processing..." : "View Details"
+                    }
                   </Button>
                 </div>
               </CardContent>
